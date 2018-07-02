@@ -1,21 +1,21 @@
-# deep-diff
+# order-diff
 
-[![CircleCI](https://circleci.com/gh/flitbit/diff.svg?style=svg)](https://circleci.com/gh/flitbit/diff)
+[![CircleCI](https://circleci.com/gh/logoran/diff.svg?style=svg)](https://circleci.com/gh/logoran/diff)
 
-[![NPM](https://nodei.co/npm/deep-diff.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/deep-diff/)
+[![NPM](https://nodei.co/npm/order-diff.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/order-diff/)
 
-**deep-diff** is a javascript/node.js module providing utility functions for determining the structural differences between objects and includes some utilities for applying differences across objects.
+**order-diff** is a javascript/node.js module providing utility functions for determining the structural differences between objects and includes some utilities for applying differences across objects.
 
 ## Install
 
 ```bash
-npm install deep-diff
+npm install order-diff
 ```
 
 Possible v1.0.0 incompatabilities:
 
 * elements in arrays are now processed in reverse order, which fixes a few nagging bugs but may break some users
-  * If your code relied on the order in which the differences were reported then your code will break. If you consider an object graph to be a big tree, then `deep-diff` does a [pre-order traversal of the object graph](https://en.wikipedia.org/wiki/Tree_traversal), however, when it encounters an array, the array is processed from the end towards the front, with each element recursively processed in-order during further descent.
+  * If your code relied on the order in which the differences were reported then your code will break. If you consider an object graph to be a big tree, then `order-diff` does a [pre-order traversal of the object graph](https://en.wikipedia.org/wiki/Tree_traversal), however, when it encounters an array, the array is processed from the end towards the front, with each element recursively processed in-order during further descent.
 
 ## Features
 
@@ -27,7 +27,7 @@ Possible v1.0.0 incompatabilities:
 ## Installation
 
 ```bash
-npm install deep-diff
+npm install order-diff
 ```
 
 ### Importing
@@ -35,35 +35,35 @@ npm install deep-diff
 #### nodejs
 
 ```javascript
-var diff = require('deep-diff')
+var diff = require('order-diff')
 // or:
-// const diff = require('deep-diff');
-// const { diff } = require('deep-diff');
+// const diff = require('order-diff');
+// const { diff } = require('order-diff');
 // or:
-// const DeepDiff = require('deep-diff');
-// const { DeepDiff } = require('deep-diff');
+// const OrderDiff = require('order-diff');
+// const { OrderDiff } = require('order-diff');
 // es6+:
-// import diff from 'deep-diff';
-// import { diff } from 'deep-diff';
+// import diff from 'order-diff';
+// import { diff } from 'order-diff';
 // es6+:
-// import DeepDiff from 'deep-diff';
-// import { DeepDiff } from 'deep-diff';
+// import OrderDiff from 'order-diff';
+// import { OrderDiff } from 'order-diff';
 ```
 
 #### browser
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/deep-diff@1/dist/deep-diff.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/order-diff@1/dist/order-diff.min.js"></script>
 ```
 
-> In a browser, `deep-diff` defines a global variable `DeepDiff`. If there is a conflict in the global namespace you can restore the conflicting definition and assign `deep-diff` to another variable like this: `var deep = DeepDiff.noConflict();`.
+> In a browser, `order-diff` defines a global variable `OrderDiff`. If there is a conflict in the global namespace you can restore the conflicting definition and assign `order-diff` to another variable like this: `var order = OrderDiff.noConflict();`.
 
 ## Simple Examples
 
 In order to describe differences, change revolves around an `origin` object. For consistency, the `origin` object is always the operand on the `left-hand-side` of operations. The `comparand`, which may contain changes, is always on the `right-hand-side` of operations.
 
 ``` javascript
-var diff = require('deep-diff').diff;
+var diff = require('order-diff').diff;
 
 var lhs = {
   name: 'my object',
@@ -127,15 +127,15 @@ Differences are reported as one or more change records. Change records have the 
 Change records are generated for all structural differences between `origin` and `comparand`. The methods only consider an object's own properties and array elements; those inherited from an object's prototype chain are not considered.
 
 Changes to arrays are recorded simplistically. We care most about the shape of the structure; therefore we don't take the time to determine if an object moved from one slot in the array to another. Instead, we only record the structural
-differences. If the structural differences are applied from the `comparand` to the `origin` then the two objects will compare as "deep equal" using most `isEqual` implementations such as found in [lodash](https://github.com/bestiejs/lodash) or [underscore](http://underscorejs.org/).
+differences. If the structural differences are applied from the `comparand` to the `origin` then the two objects will compare as "order equal" using most `isEqual` implementations such as found in [lodash](https://github.com/bestiejs/lodash) or [underscore](http://underscorejs.org/).
 
 ### Changes
 
 When two objects differ, you can observe the differences as they are calculated and selectively apply those changes to the origin object (left-hand-side).
 
 ``` javascript
-var observableDiff = require('deep-diff').observableDiff;
-var applyChange = require('deep-diff').applyChange;
+var observableDiff = require('order-diff').observableDiff;
+var applyChange = require('order-diff').applyChange;
 
 var lhs = {
   name: 'my object',
@@ -166,7 +166,7 @@ observableDiff(lhs, rhs, function (d) {
 
 ## API Documentation
 
-A standard import of `var diff = require('deep-diff')` is assumed in all of the code examples. The import results in an object having the following public properties:
+A standard import of `var diff = require('order-diff')` is assumed in all of the code examples. The import results in an object having the following public properties:
 
 * `diff(lhs, rhs, prefilter, acc)` &mdash; calculates the differences between two objects, optionally prefiltering elements for comparison, and optionally using the specified accumulator.
 * `observableDiff(lhs, rhs, observer, prefilter)` &mdash; calculates the differences between two objects and reports each to an observer function, optionally, prefiltering elements for comparison.
@@ -199,7 +199,7 @@ if (changes) {
 The `prefilter`'s signature should be `function(path, key)` and it should return a truthy value for any `path`-`key` combination that should be filtered. If filtered, the difference analysis does no further analysis of on the identified object-property path.
 
 ```javascript
-const diff = require('deep-diff');
+const diff = require('order-diff');
 const assert = require('assert');
 
 const data = {
@@ -209,8 +209,8 @@ const data = {
   posts: [
     {
       date: '2018-04-16',
-      text: `additional example for prefilter for deep-diff would be great.
-      https://stackoverflow.com/questions/38364639/pre-filter-condition-deep-diff-node-js`
+      text: `additional example for prefilter for order-diff would be great.
+      https://stackoverflow.com/questions/38364639/pre-filter-condition-order-diff-node-js`
     }
   ]
 };
@@ -230,7 +230,7 @@ assert.ok(typeof none === 'undefined', 'should reflect no differences');
 
 ## Contributing
 
-When contributing, keep in mind that it is an objective of `deep-diff` to have no package dependencies. This may change in the future, but for now, no-dependencies.
+When contributing, keep in mind that it is an objective of `order-diff` to have no package dependencies. This may change in the future, but for now, no-dependencies.
 
 Please run the unit tests before submitting your PR: `npm test`. Hopefully your PR includes additional unit tests to illustrate your change/modification!
 

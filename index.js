@@ -1,24 +1,24 @@
 ;(function(root, factory) { // eslint-disable-line no-extra-semi
-  var deepDiff = factory(root);
+  var orderDiff = factory(root);
   // eslint-disable-next-line no-undef
   if (typeof define === 'function' && define.amd) {
       // AMD
-      define('DeepDiff', function() { // eslint-disable-line no-undef
-          return deepDiff;
+      define('OrderDiff', function() { // eslint-disable-line no-undef
+          return orderDiff;
       });
   } else if (typeof exports === 'object') {
       // Node.js
-      module.exports = deepDiff;
+      module.exports = orderDiff;
   } else {
       // Browser globals
-      var _deepdiff = root.DeepDiff;
-      deepDiff.noConflict = function() {
-          if (root.DeepDiff === deepDiff) {
-              root.DeepDiff = _deepdiff;
+      var _orderdiff = root.OrderDiff;
+      orderDiff.noConflict = function() {
+          if (root.OrderDiff === orderDiff) {
+              root.OrderDiff = _orderdiff;
           }
-          return deepDiff;
+          return orderDiff;
       };
-      root.DeepDiff = deepDiff;
+      root.OrderDiff = orderDiff;
   }
 }(this, function(root) {
   var validKinds = ['N', 'E', 'A', 'D'];
@@ -164,7 +164,7 @@
     return accum + hashThisString(stringToHash);
   }
 
-  function deepDiff(lhs, rhs, changes, prefilter, path, key, stack, orderIndependent) {
+  function orderDiff(lhs, rhs, changes, prefilter, path, key, stack, orderIndependent) {
     changes = changes || [];
     path = path || [];
     stack = stack || [];
@@ -243,7 +243,7 @@
             changes.push(new DiffArray(currentPath, j, new DiffDeleted(undefined, lhs[j--])));
           }
           for (; i >= 0; --i) {
-            deepDiff(lhs[i], rhs[i], changes, prefilter, currentPath, i, stack, orderIndependent);
+            orderDiff(lhs[i], rhs[i], changes, prefilter, currentPath, i, stack, orderIndependent);
           }
         } else {
           var akeys = Object.keys(lhs);
@@ -252,16 +252,16 @@
             k = akeys[i];
             other = pkeys.indexOf(k);
             if (other >= 0) {
-              deepDiff(lhs[k], rhs[k], changes, prefilter, currentPath, k, stack, orderIndependent);
+              orderDiff(lhs[k], rhs[k], changes, prefilter, currentPath, k, stack, orderIndependent);
               pkeys[other] = null;
             } else {
-              deepDiff(lhs[k], undefined, changes, prefilter, currentPath, k, stack, orderIndependent);
+              orderDiff(lhs[k], undefined, changes, prefilter, currentPath, k, stack, orderIndependent);
             }
           }
           for (i = 0; i < pkeys.length; ++i) {
             k = pkeys[i];
             if (k) {
-              deepDiff(undefined, rhs[k], changes, prefilter, currentPath, k, stack, orderIndependent);
+              orderDiff(undefined, rhs[k], changes, prefilter, currentPath, k, stack, orderIndependent);
             }
           }
         }
@@ -279,7 +279,7 @@
 
   function observableDiff(lhs, rhs, observer, prefilter, orderIndependent) {
     var changes = [];
-    deepDiff(lhs, rhs, changes, prefilter, null, null, null, orderIndependent);
+    orderDiff(lhs, rhs, changes, prefilter, null, null, null, orderIndependent);
     if (observer) {
       for (var i = 0; i < changes.length; ++i) {
         observer(changes[i]);
@@ -288,8 +288,8 @@
     return changes;
   }
 
-  function orderIndependentDeepDiff(lhs, rhs, changes, prefilter, path, key, stack) {
-    return deepDiff(lhs, rhs, changes, prefilter, path, key, stack, true);
+  function orderIndependentOrderDiff(lhs, rhs, changes, prefilter, path, key, stack) {
+    return orderDiff(lhs, rhs, changes, prefilter, path, key, stack, true);
   }
 
   function accumulateDiff(lhs, rhs, prefilter, accum) {
@@ -483,7 +483,7 @@
       enumerable: true
     },
     orderIndependentObservableDiff: {
-      value: orderIndependentDeepDiff,
+      value: orderIndependentOrderDiff,
       enumerable: true
     },
     orderIndepHash: {
@@ -511,13 +511,13 @@
   });
 
   // hackish...
-  accumulateDiff.DeepDiff = accumulateDiff;
+  accumulateDiff.OrderDiff = accumulateDiff;
   // ...but works with:
-  // import DeepDiff from 'deep-diff'
-  // import { DeepDiff } from 'deep-diff'
-  // const DeepDiff = require('deep-diff');
-  // const { DeepDiff } = require('deep-diff');
+  // import OrderDiff from 'order-diff'
+  // import { OrderDiff } from 'order-diff'
+  // const OrderDiff = require('order-diff');
+  // const { OrderDiff } = require('order-diff');
 
-  root.DeepDiff = accumulateDiff;
+  root.OrderDiff = accumulateDiff;
   return accumulateDiff;
 }));
