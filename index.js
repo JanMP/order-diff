@@ -362,13 +362,13 @@
     for (i = 0; i < lhs.length; ++i) {
       hash = getOrderIndependentHash(lhs[i], orderIndependent);
       if (!hashList[hash]) {
-        peerList.push([i, -1, -1]);
+        peerList.push([i, -1]);
         continue;
       }
       if (lastPeer) {
         k = lastPeer[1] + 1;
         if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
-          peerList.push([i, k, -1]);
+          peerList.push([i, k]);
           useList[k] = i;
           hashList[hash].splice(hashList[hash].indexOf(k), 1);
           if (hashList[hash].length === 0) {
@@ -378,7 +378,7 @@
           if (lhashList[hash].length === 0) {
             delete lhashList[hash];
           }
-          lastPeer = [i, k, -1];
+          lastPeer = [i, k];
           continue;
         }
       }
@@ -391,7 +391,7 @@
         delete lhashList[hash];
         lastPeer = [i, k, -1];
       } else {
-        peerList.push([i, -1, -1]);
+        peerList.push([i, -1]);
       }
     }
     for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
@@ -416,7 +416,7 @@
           if (lhashList[hash].length === 0) {
             delete lhashList[hash];
           }
-          lastPeer = [i, k, -1];
+          lastPeer = [i, k];
           continue;
         }
       }
@@ -427,7 +427,7 @@
         useList[k] = i;
         delete hashList[hash];
         delete lhashList[hash];
-        lastPeer = [i, k, -1];
+        lastPeer = [i, k];
       }
     }
     for (i = 0; i < lhs.length; ++i) {
@@ -459,31 +459,33 @@
       }
     }
     for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
-      if (peerList[i][1] !== -1 || peerList[i][2] !== -1) {
+      if (peerList[i][1] !== -1) {
         lastPeer = peerList[i];
         continue;
       }
       if (lastPeer) {
-        k = (lastPeer[1] === -1 ? lastPeer[2] : lastPeer[1]) + 1;
+        k = lastPeer[1] + 1;
         if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
-          peerList[i][2] = k;
+          peerList[i][1] = k;
+          peerList[i][2] = true;
           useList[k] = i;
-          lastPeer = [i, -1, k];
+          lastPeer = [i, k];
           continue;
         }
       }
     }
     for (lastPeer = undefined, i = lhs.length - 1; i >= 0; --i) {
-      if (peerList[i][1] !== -1 || peerList[i][2] !== -1) {
+      if (peerList[i][1] !== -1) {
         lastPeer = peerList[i];
         continue;
       }
       if (lastPeer) {
-        k = (lastPeer[1] === -1 ? lastPeer[2] : lastPeer[1]) - 1;
+        k = lastPeer[1] - 1;
         if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
-          peerList[i][2] = k;
+          peerList[i][1] = k;
+          peerList[i][2] = true;
           useList[k] = i;
-          lastPeer = [i, -1, k];
+          lastPeer = [i, k];
           continue;
         }
       }
@@ -492,7 +494,7 @@
     if (orderIndependent) {
       offset = 0;
       for (i = 0, j = 0; i < rhs.length + offset;) {
-        if (i < peerList.length && peerList[i][1] === -1 && peerList[i][2] === -1) {
+        if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, i, 'D', lhs, rhs)) {
             ++offset;
             ++i;
@@ -507,18 +509,18 @@
             --offset;
           } else {
             changes.push(new DiffNew(path.concat(i), rhs[j]));
-            peerList.splice(i, 0, [-1, j, -1]);
+            peerList.splice(i, 0, [-1, j]);
             ++i;
           }
           ++j;
           continue;
         }
-        if (peerList[i] && peerList[i][1] !== -1) {
+        if (peerList[i] && peerList[i][1] !== -1 && !peerList[i][2]) {
           ++i;
           continue;
         }
-        if (peerList[i] && peerList[i][2] !== -1) {
-          k = peerList[i][2];
+        if (peerList[i] && peerList[i][1] !== -1 && peerList[i][2]) {
+          k = peerList[i][1];
           if (!prefilter(path, i, 'E', lhs, rhs)) {
             orderDiff(lhs[i], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
           }
