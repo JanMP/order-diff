@@ -106,18 +106,18 @@
   function getFilter(prefilter) {
     if (prefilter) {
       if (typeof (prefilter) === 'function') {
-        return function(currentPath, key) {
-          return prefilter(currentPath, key);
+        return function(currentPath, key, type) {
+          return prefilter(currentPath, key, type);
         };
       } else if (typeof (prefilter) === 'object') {
         if (prefilter.prefilter) {
-          return function (currentPath, key) {
-            return prefilter.prefilter(currentPath, key);
+          return function (currentPath, key, type) {
+            return prefilter.prefilter(currentPath, key, type);
           };
         }
         if (prefilter.normalize) {
-          return function (currentPath, key, lhs, rhs) {
-            return prefilter.normalize(currentPath, key, lhs, rhs);
+          return function (currentPath, key, type, lhs, rhs) {
+            return prefilter.normalize(currentPath, key, type, lhs, rhs);
           };
         }
       }
@@ -493,7 +493,7 @@
       offset = 0;
       for (i = 0, j = 0; i < rhs.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1 && peerList[i][2] === -1) {
-          if (prefilter(path, i, lhs, rhs)) {
+          if (prefilter(path, i, 'D', lhs, rhs)) {
             ++offset;
             ++i;
           } else {
@@ -503,7 +503,7 @@
           continue;
         }
         if (undefined === useList[j]) {
-          if (prefilter(path, i, lhs, rhs)) {
+          if (prefilter(path, i, 'N', lhs, rhs)) {
             --offset;
           } else {
             changes.push(new DiffNew(path.concat(i), rhs[j]));
@@ -519,7 +519,7 @@
         }
         if (peerList[i] && peerList[i][2] !== -1) {
           k = peerList[i][2];
-          if (!prefilter(path, i, lhs, rhs)) {
+          if (!prefilter(path, i, 'E', lhs, rhs)) {
             orderDiff(lhs[i], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
           }
           ++i;
