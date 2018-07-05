@@ -123,7 +123,7 @@
       }
     }
     return function () {
-      return true;
+      return false;
     };
   }
 
@@ -495,7 +495,7 @@
       offset = 0;
       for (i = 0, j = 0; i < rhs.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
-          if (prefilter(path, i, 'D', lhs, rhs)) {
+          if (prefilter(path, i, 'D', lhs[peerList[i][0]])) {
             ++offset;
             ++i;
           } else {
@@ -505,7 +505,7 @@
           continue;
         }
         if (undefined === useList[j]) {
-          if (prefilter(path, i, 'N', lhs, rhs)) {
+          if (prefilter(path, i, 'N', undefined, rhs[j])) {
             --offset;
           } else {
             changes.push(new DiffNew(path.concat(i), rhs[j]));
@@ -515,14 +515,12 @@
           ++j;
           continue;
         }
-        if (peerList[i] && peerList[i][1] !== -1 && !peerList[i][2]) {
-          ++i;
-          continue;
-        }
-        if (peerList[i] && peerList[i][1] !== -1 && peerList[i][2]) {
-          k = peerList[i][1];
-          if (!prefilter(path, i, 'E', lhs, rhs)) {
-            orderDiff(lhs[i], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+        if (peerList[i] && peerList[i][1] !== -1) {
+          if (peerList[i][2]) {
+            k = peerList[i][1];
+            if (!prefilter(path, i, 'E', lhs[peerList[i][0]], rhs[k])) {
+              orderDiff(lhs[peerList[i][0]], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+            }
           }
           ++i;
           continue;
@@ -533,30 +531,41 @@
         }
       }
     } else {
-      for (i = 0; i < rhs.length;) {
+      offset = 0;
+      for (i = 0; i < rhs.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
-          changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
-          peerList.splice(i, 1);
-          if (undefined === useList[i]) {
-            changes.push(new DiffNew(path.concat(i), rhs[i]));
-            peerList.splice(i, 0, [-1, i]);
+          if (prefilter(path, i, 'D', lhs[peerList[i][0]])) {
+            ++offset;
+            ++i;
+          } else {
+            changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
+            peerList.splice(i, 1);
+          }
+          continue;
+        }
+        if (undefined === useList[i - offset]) {
+          if (prefilter(path, i, 'N', lhs, rhs)) {
+            --offset;
+          } else {
+            changes.push(new DiffNew(path.concat(i), rhs[i - offset]));
+            peerList.splice(i, 0, [-1, i - offset]);
             ++i;
           }
           continue;
         }
-        if (undefined === useList[i]) {
-          changes.push(new DiffNew(path.concat(i), rhs[i]));
-          peerList.splice(i, 0, [-1, i]);
+        if (peerList[i][1] === i - offset) {
+          if (peerList[i][2]) {
+            k = peerList[i][1];
+            if (!prefilter(path, i, 'E', lhs[peerList[i][0]], rhs[k])) {
+              orderDiff(lhs[peerList[i][0]], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+            }
+          }
           ++i;
           continue;
         }
-        if (peerList[i][1] === i) {
-          ++i;
-          continue;
-        }
-        for (k = i + 1; peerList[k][1] !== i; ++k); // eslint-disable-line curly
-        for (rl = 1; rl < peerList.length - k && peerList[k + rl][1] === i + rl; ++rl); // eslint-disable-line curly
-        if (useList[peerList[i][1] - 1]) {
+        for (k = i + 1; peerList[k][1] !== i - offset; ++k); // eslint-disable-line curly
+        for (rl = 1; rl < peerList.length - k && peerList[k + rl][1] === i - offset + rl; ++rl); // eslint-disable-line curly
+        if (undefined !== useList[peerList[i][1] - 1]) {
           j = peerList[i][1];
           for (ll = 1; ll < peerList.length - i && peerList[i + ll][1] === j + ll; ++ll); // eslint-disable-line curly
           if (ll < rl) {
@@ -564,6 +573,11 @@
             for (k = i + ll; peerList[k][1] !== rl; ++k); // eslint-disable-line curly
             for (j = 0; j < ll; ++j) {
               changes.push(new DiffMoved(path.concat(i), k + 1, lhs[peerList[i + j][0]]));
+              if (peerList[i + j][2]) {
+                if (!prefilter(path, k + 1, 'E', lhs[peerList[i + j][0]], rhs[peerList[i + j][1]])) {
+                  orderDiff(lhs[peerList[i][0]], rhs[peerList[i + j][1]], changes, prefilter, path.concat(k + 1), null, orderIndependent); // eslint-disable-line no-use-before-define
+                }
+              }
             }
             peerList.splice(k + 1 - ll, 0, ...peerList.splice(i, ll));
             continue;
@@ -571,6 +585,9 @@
         }
         for (j = 0; j < rl; ++j) {
           changes.push(new DiffMoved(path.concat(k + j), i + j, lhs[peerList[k + j][0]]));
+          if (!prefilter(path, k + j, 'E', lhs[peerList[k + j][0]], rhs[peerList[k + j][1]])) {
+            orderDiff(lhs[peerList[k + j][0]], rhs[peerList[k + j][1]], changes, prefilter, path.concat(i + j), null, orderIndependent); // eslint-disable-line no-use-before-define
+          }
         }
         peerList.splice(i, 0, ...peerList.splice(k, rl));
         i += rl;
