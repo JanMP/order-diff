@@ -103,6 +103,30 @@
   }
   inherits(DiffMoved, Diff);
 
+  function getFilter(prefilter) {
+    if (prefilter) {
+      if (typeof (prefilter) === 'function') {
+        return function(currentPath, key) {
+          return prefilter(currentPath, key);
+        };
+      } else if (typeof (prefilter) === 'object') {
+        if (prefilter.prefilter) {
+          return function (currentPath, key) {
+            return prefilter.prefilter(currentPath, key);
+          };
+        }
+        if (prefilter.normalize) {
+          return function (currentPath, key, lhs, rhs) {
+            return prefilter.normalize(currentPath, key, lhs, rhs);
+          };
+        }
+      }
+    }
+    return function () {
+      return true;
+    };
+  }
+
   function realTypeOf(subject) {
     var type = typeof subject;
     if (type !== 'object') {
@@ -317,6 +341,7 @@
     var useList = [];
     var lastPeer;
     var hash;
+    var offset;
     var ll, rl;
     lhs.forEach(function (item, index) {
       hash = getOrderIndependentHash(item, orderIndependent);
@@ -465,30 +490,44 @@
     }
     useList.length = rhs.length;
     if (orderIndependent) {
-      for (i = 0, j = 0; i < rhs.length;) {
-        if (i < peerList.length && peerList[i][1] === -1) {
-          changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
-          peerList.splice(i, 1);
-          if (undefined === useList[j]) {
-            changes.push(new DiffNew(path.concat(i), rhs[j]));
-            peerList.splice(i, 0, [-1, j]);
+      offset = 0;
+      for (i = 0, j = 0; i < rhs.length + offset;) {
+        if (i < peerList.length && peerList[i][1] === -1 && peerList[i][2] === -1) {
+          if (prefilter(path, i, lhs, rhs)) {
+            ++offset;
             ++i;
-            ++j;
+          } else {
+            changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
+            peerList.splice(i, 1);
           }
           continue;
         }
         if (undefined === useList[j]) {
-          changes.push(new DiffNew(path.concat(i), rhs[j]));
-          peerList.splice(i, 0, [-1, j]);
-          ++i;
+          if (prefilter(path, i, lhs, rhs)) {
+            --offset;
+          } else {
+            changes.push(new DiffNew(path.concat(i), rhs[j]));
+            peerList.splice(i, 0, [-1, j, -1]);
+            ++i;
+          }
           ++j;
           continue;
         }
-        while (peerList[i] && peerList[i][1] !== -1) {
+        if (peerList[i] && peerList[i][1] !== -1) {
           ++i;
+          continue;
         }
-        while (undefined !== useList[j]) {
+        if (peerList[i] && peerList[i][2] !== -1) {
+          k = peerList[i][2];
+          if (!prefilter(path, i, lhs, rhs)) {
+            orderDiff(lhs[i], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+          }
+          ++i;
+          continue;
+        }
+        if (undefined !== useList[j]) {
           ++j;
+          continue;
         }
       }
     } else {
@@ -672,7 +711,7 @@
 
   function observableDiff(lhs, rhs, observer, prefilter, orderIndependent) {
     var changes = [];
-    orderDiff(lhs, rhs, changes, prefilter, null, null, orderIndependent);
+    orderDiff(lhs, rhs, changes, getFilter(prefilter), null, null, orderIndependent);
     if (observer) {
       for (var i = 0; i < changes.length; ++i) {
         observer(changes[i]);
