@@ -187,6 +187,41 @@
     return hashThisString(stringToHash);
   }
 
+  function objectSimilar(lhs, rhs, orderIndependent, scale) {
+    scale = scale || 0.5;
+    var ltype = realTypeOf(lhs);
+    var lkeys = [];
+    var rkeys = [];
+    var count = 0;
+    if (ltype !== realTypeOf(rhs)) {
+      return false;
+    }
+    if (ltype !== 'array' && ltype !== 'object') {
+      return true;
+    }
+    if (ltype === 'array') {
+      lhs.forEach(function (item) {
+        lkeys.push(getOrderIndependentHash(item, orderIndependent));
+      });
+      rhs.forEach(function (item) {
+        rkeys.push(getOrderIndependentHash(item, orderIndependent));
+      });
+    } else if (ltype === 'object') {
+      lkeys = Object.keys(lhs);
+      rkeys = Object.keys(rhs);
+    }
+    lkeys.forEach(function (item) {
+      if (rkeys.indexOf(item) !== -1) {
+        ++count;
+      }
+    });
+    if (count > lkeys.length * scale && count > rkeys.length * scale) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   function objectEqual(lhs, rhs, orderIndependent) {
     if (lhs === rhs) {
       return true;
@@ -276,11 +311,21 @@
 
   function orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
     var i, j, k;
+    var lhashList = {};
     var hashList = {};
     var peerList = [];
     var useList = [];
+    var lastPeer;
     var hash;
     var ll, rl;
+    lhs.forEach(function (item, index) {
+      hash = getOrderIndependentHash(item, orderIndependent);
+      if (lhashList.hash) {
+        lhashList[hash].push(index);
+      } else {
+        lhashList[hash] = [index];
+      }
+    });
     rhs.forEach(function (item, index) {
       hash = getOrderIndependentHash(item, orderIndependent);
       if (hashList.hash) {
@@ -292,7 +337,81 @@
     for (i = 0; i < lhs.length; ++i) {
       hash = getOrderIndependentHash(lhs[i], orderIndependent);
       if (!hashList[hash]) {
-        peerList.push([i, -1]);
+        peerList.push([i, -1, -1]);
+        continue;
+      }
+      if (lastPeer) {
+        k = lastPeer[1] + 1;
+        if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+          peerList.push([i, k, -1]);
+          useList[k] = i;
+          hashList[hash].splice(hashList[hash].indexOf(k), 1);
+          if (hashList[hash].length === 0) {
+            delete hashList[hash];
+          }
+          lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
+          if (lhashList[hash].length === 0) {
+            delete lhashList[hash];
+          }
+          lastPeer = [i, k, -1];
+          continue;
+        }
+      }
+      if (lhashList[hash].length === 1 && hashList[hash].length === 1
+        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
+        k = hashList[hash][0];
+        peerList.push([i, k, -1]);
+        useList[k] = i;
+        delete hashList[hash];
+        delete lhashList[hash];
+        lastPeer = [i, k, -1];
+      } else {
+        peerList.push([i, -1, -1]);
+      }
+    }
+    for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
+      if (peerList[i][1] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      if (!hashList[hash]) {
+        continue;
+      }
+      if (lastPeer) {
+        k = lastPeer[1] + 1;
+        if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+          peerList[i][1] = k;
+          useList[k] = i;
+          hashList[hash].splice(hashList[hash].indexOf(k), 1);
+          if (hashList[hash].length === 0) {
+            delete hashList[hash];
+          }
+          lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
+          if (lhashList[hash].length === 0) {
+            delete lhashList[hash];
+          }
+          lastPeer = [i, k, -1];
+          continue;
+        }
+      }
+      if (lhashList[hash].length === 1 && hashList[hash].length === 1
+        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
+        k = hashList[hash][0];
+        peerList[i][1] = k;
+        useList[k] = i;
+        delete hashList[hash];
+        delete lhashList[hash];
+        lastPeer = [i, k, -1];
+      }
+    }
+    for (i = 0; i < lhs.length; ++i) {
+      if (peerList[i][1] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      if (!hashList[hash]) {
         continue;
       }
       for (j = 0; j < hashList[hash].length; ++j) {
@@ -300,14 +419,47 @@
           break;
         }
       }
-      if (j === hashList[hash].length) {
-        peerList.push([i, -1]);
-      } else {
-        peerList.push([i, hashList[hash][j]]);
-        useList[hashList[hash][j]] = i;
+      if (j !== hashList[hash].length) {
+        k = hashList[hash][j];
+        peerList[i][1] = k;
+        useList[k] = i;
         hashList[hash].splice(j, 1);
         if (hashList[hash].length === 0) {
           delete hashList[hash];
+        }
+        lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
+        if (lhashList[hash].length === 0) {
+          delete lhashList[hash];
+        }
+      }
+    }
+    for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
+      if (peerList[i][1] !== -1 || peerList[i][2] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      if (lastPeer) {
+        k = (lastPeer[1] === -1 ? lastPeer[2] : lastPeer[1]) + 1;
+        if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
+          peerList[i][2] = k;
+          useList[k] = i;
+          lastPeer = [i, -1, k];
+          continue;
+        }
+      }
+    }
+    for (lastPeer = undefined, i = lhs.length - 1; i >= 0; --i) {
+      if (peerList[i][1] !== -1 || peerList[i][2] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      if (lastPeer) {
+        k = (lastPeer[1] === -1 ? lastPeer[2] : lastPeer[1]) - 1;
+        if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
+          peerList[i][2] = k;
+          useList[k] = i;
+          lastPeer = [i, -1, k];
+          continue;
         }
       }
     }
