@@ -758,7 +758,7 @@
           }
           continue;
         }
-        if (peerList[i][1] === i - offset) {
+        if (peerList[i][1] <= i - offset) {
           if (peerList[i][2]) {
             k = peerList[i][1];
             if (!prefilter(path, pathOfItem(i), 'E', indexOfLhs(peerList[i][0]), indexOfRhs(k))) {
@@ -773,10 +773,19 @@
               }
             }
           }
+          if (peerList[i][1] < i - offset) {
+            // left by move filter
+            --offset;
+          }
           ++i;
           continue;
         }
-        for (k = i + 1; peerList[k][1] !== i - offset; ++k); // eslint-disable-line curly
+        for (k = i + 1; k < peerList.length && peerList[k][1] !== i - offset; ++k); // eslint-disable-line curly
+        if (k === peerList.length) {
+          // can't find the target because move filter
+          --offset;
+          continue;
+        }
         for (rl = 1; rl < peerList.length - k && peerList[k + rl][1] === i - offset + rl; ++rl); // eslint-disable-line curly
         if (undefined !== useList[peerList[i][1] - 1]) {
           j = peerList[i][1];
