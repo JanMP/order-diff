@@ -344,6 +344,7 @@
     var offset;
     var ll, rl;
     lhs.forEach(function (item, index) {
+      peerList.push([index, -1]);
       hash = getOrderIndependentHash(item, orderIndependent);
       if (lhashList.hash) {
         lhashList[hash].push(index);
@@ -359,41 +360,6 @@
         hashList[hash] = [index];
       }
     });
-    for (i = 0; i < lhs.length; ++i) {
-      hash = getOrderIndependentHash(lhs[i], orderIndependent);
-      if (!hashList[hash]) {
-        peerList.push([i, -1]);
-        continue;
-      }
-      if (lastPeer) {
-        k = lastPeer[1] + 1;
-        if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
-          peerList.push([i, k]);
-          useList[k] = i;
-          hashList[hash].splice(hashList[hash].indexOf(k), 1);
-          if (hashList[hash].length === 0) {
-            delete hashList[hash];
-          }
-          lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
-          if (lhashList[hash].length === 0) {
-            delete lhashList[hash];
-          }
-          lastPeer = [i, k];
-          continue;
-        }
-      }
-      if (lhashList[hash].length === 1 && hashList[hash].length === 1
-        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
-        k = hashList[hash][0];
-        peerList.push([i, k, -1]);
-        useList[k] = i;
-        delete hashList[hash];
-        delete lhashList[hash];
-        lastPeer = [i, k, -1];
-      } else {
-        peerList.push([i, -1]);
-      }
-    }
     for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
       if (peerList[i][1] !== -1) {
         lastPeer = peerList[i];
@@ -405,20 +371,60 @@
       }
       if (lastPeer) {
         k = lastPeer[1] + 1;
-        if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
-          peerList[i][1] = k;
-          useList[k] = i;
-          hashList[hash].splice(hashList[hash].indexOf(k), 1);
-          if (hashList[hash].length === 0) {
-            delete hashList[hash];
-          }
-          lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
-          if (lhashList[hash].length === 0) {
-            delete lhashList[hash];
-          }
-          lastPeer = [i, k];
-          continue;
+      } else {
+        k = 0;
+      }
+      if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+        peerList[i][1] = k;
+        useList[k] = i;
+        hashList[hash].splice(hashList[hash].indexOf(k), 1);
+        if (hashList[hash].length === 0) {
+          delete hashList[hash];
         }
+        lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
+        if (lhashList[hash].length === 0) {
+          delete lhashList[hash];
+        }
+        lastPeer = [i, k];
+        continue;
+      }
+      if (lhashList[hash].length === 1 && hashList[hash].length === 1
+        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
+        k = hashList[hash][0];
+        peerList[i][1] = k;
+        useList[k] = i;
+        delete hashList[hash];
+        delete lhashList[hash];
+        lastPeer = [i, k];
+      }
+    }
+    for (lastPeer = undefined, i = lhs.length - 1; i >= 0; --i) {
+      if (peerList[i][1] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      if (!hashList[hash]) {
+        continue;
+      }
+      if (lastPeer) {
+        k = lastPeer[1] - 1;
+      } else {
+        k = lhs.length - 1;
+      }
+      if (k >= 0 && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+        peerList[i][1] = k;
+        useList[k] = i;
+        hashList[hash].splice(hashList[hash].indexOf(k), 1);
+        if (hashList[hash].length === 0) {
+          delete hashList[hash];
+        }
+        lhashList[hash].splice(lhashList[hash].indexOf(i), 1);
+        if (lhashList[hash].length === 0) {
+          delete lhashList[hash];
+        }
+        lastPeer = [i, k];
+        continue;
       }
       if (lhashList[hash].length === 1 && hashList[hash].length === 1
         && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
