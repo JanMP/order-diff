@@ -579,11 +579,11 @@
             for (k = i + ll; peerList[k][1] !== rl; ++k); // eslint-disable-line curly
             for (j = 0; j < ll; ++j) {
               changes.push(new DiffMoved(path.concat(i), k + 1, lhs[peerList[i + j][0]]));
-              if (peerList[i + j][2]) {
-                if (!prefilter(path, k + 1, 'E', lhs[peerList[i + j][0]], rhs[peerList[i + j][1]])) {
-                  orderDiff(lhs[peerList[i][0]], rhs[peerList[i + j][1]], changes, prefilter, path.concat(k + 1), null, orderIndependent); // eslint-disable-line no-use-before-define
-                }
-              }
+              // if (peerList[i + j][2]) {
+              //   if (!prefilter(path, k + 1, 'E', lhs[peerList[i + j][0]], rhs[peerList[i + j][1]])) {
+              //     orderDiff(lhs[peerList[i][0]], rhs[peerList[i + j][1]], changes, prefilter, path.concat(k + 1), null, orderIndependent); // eslint-disable-line no-use-before-define
+              //   }
+              // }
             }
             peerList.splice(k + 1 - ll, 0, ...peerList.splice(i, ll));
             continue;
