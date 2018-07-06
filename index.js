@@ -333,16 +333,13 @@
     }
   }
 
-  function orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
+  function compareArray(lhs, rhs, peerList, useList, orderIndependent, scale) {
+    scale = scale || 0.5;
     var i, j, k;
     var lhashList = {};
     var hashList = {};
-    var peerList = [];
-    var useList = [];
     var lastPeer;
     var hash;
-    var offset;
-    var ll, rl;
     lhs.forEach(function (item, index) {
       peerList.push([index, -1]);
       hash = getOrderIndependentHash(item, orderIndependent);
@@ -464,39 +461,50 @@
         }
       }
     }
-    for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
-      if (peerList[i][1] !== -1) {
-        lastPeer = peerList[i];
-        continue;
-      }
-      if (lastPeer) {
-        k = lastPeer[1] + 1;
-        if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
-          peerList[i][1] = k;
-          peerList[i][2] = true;
-          useList[k] = i;
-          lastPeer = [i, k];
+    if (scale !== true) {
+      for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
+        if (peerList[i][1] !== -1) {
+          lastPeer = peerList[i];
           continue;
         }
+        if (lastPeer) {
+          k = lastPeer[1] + 1;
+          if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent, scale)) {
+            peerList[i][1] = k;
+            peerList[i][2] = true;
+            useList[k] = i;
+            lastPeer = [i, k];
+            continue;
+          }
+        }
       }
-    }
-    for (lastPeer = undefined, i = lhs.length - 1; i >= 0; --i) {
-      if (peerList[i][1] !== -1) {
-        lastPeer = peerList[i];
-        continue;
-      }
-      if (lastPeer) {
-        k = lastPeer[1] - 1;
-        if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
-          peerList[i][1] = k;
-          peerList[i][2] = true;
-          useList[k] = i;
-          lastPeer = [i, k];
+      for (lastPeer = undefined, i = lhs.length - 1; i >= 0; --i) {
+        if (peerList[i][1] !== -1) {
+          lastPeer = peerList[i];
           continue;
+        }
+        if (lastPeer) {
+          k = lastPeer[1] - 1;
+          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
+            peerList[i][1] = k;
+            peerList[i][2] = true;
+            useList[k] = i;
+            lastPeer = [i, k];
+            continue;
+          }
         }
       }
     }
     useList.length = rhs.length;
+  }
+
+  function orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
+    var i, j, k;
+    var peerList = [];
+    var useList = [];
+    var offset;
+    var ll, rl;
+    compareArray(lhs, rhs, peerList, useList, orderIndependent);
     if (orderIndependent) {
       offset = 0;
       for (i = 0, j = 0; i < rhs.length + offset;) {
