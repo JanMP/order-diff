@@ -407,7 +407,7 @@
       if (lastPeer) {
         k = lastPeer[1] - 1;
       } else {
-        k = lhs.length - 1;
+        k = rhs.length - 1;
       }
       if (k >= 0 && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
         peerList[i][1] = k;
@@ -498,6 +498,111 @@
     useList.length = rhs.length;
   }
 
+  function compareObject(lhs, rhs, peerList, useList, orderIndependent, scale) {
+    scale = scale || 0.5;
+    var i, k;
+    var lastPeer;
+    var akeys = Object.keys(lhs);
+    var pkeys = Object.keys(rhs);
+    for (i = 0; i < akeys.length; ++i) {
+      k = akeys[i];
+      if (undefined !== rhs[k]) {
+        useList[pkeys.indexOf(k)] = i;
+        if (objectEqual(lhs[k], rhs[k], orderIndependent)) {
+          peerList.push([i, pkeys.indexOf(k)]);
+        } else {
+          peerList.push([i, pkeys.indexOf(k), true]);
+        }
+      } else {
+        peerList.push([i, -1]);
+      }
+    }
+    for (lastPeer = undefined, i = 0; i < akeys.length; ++i) {
+      if (peerList[i][1] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      if (lastPeer) {
+        k = lastPeer[1] + 1;
+      } else {
+        k = 0;
+      }
+      if (k < pkeys.length && undefined === useList[k]) {
+        if (akeys[i] === pkeys[k]) {
+          peerList[i][1] = k;
+          useList[k] = i;
+          if (!objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+            peerList[i][2] = true;
+          }
+        } else if (objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+          peerList[i][1] = k;
+          useList[k] = i;
+        }
+      }
+    }
+    for (lastPeer = undefined, i = akeys.length - 1; i >= 0; --i) {
+      if (peerList[i][1] !== -1) {
+        lastPeer = peerList[i];
+        continue;
+      }
+      if (lastPeer) {
+        k = lastPeer[1] - 1;
+      } else {
+        k = pkeys.length - 1;
+      }
+      if (k >= 0 && undefined === useList[k]) {
+        if (akeys[i] === pkeys[k]) {
+          peerList[i][1] = k;
+          useList[k] = i;
+          if (!objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+            peerList[i][2] = true;
+          }
+        } else if (objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+          peerList[i][1] = k;
+          useList[k] = i;
+        }
+      }
+    }
+    if (scale !== true) {
+      for (lastPeer = undefined, i = 0; i < akeys.length; ++i) {
+        if (peerList[i][1] !== -1) {
+          lastPeer = peerList[i];
+          continue;
+        }
+        if (lastPeer) {
+          k = lastPeer[1] + 1;
+        } else {
+          k = 0;
+        }
+        if (k < pkeys.length && undefined === useList[k]) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent) && undefined === lhs[pkeys[k]]) {
+            peerList[i][1] = k;
+            peerList[i][2] = true;
+            useList[k] = i;
+          }
+        }
+      }
+      for (lastPeer = undefined, i = pkeys.length - 1; i >= 0; --i) {
+        if (peerList[i][1] !== -1) {
+          lastPeer = peerList[i];
+          continue;
+        }
+        if (lastPeer) {
+          k = lastPeer[1] - 1;
+        } else {
+          k = pkeys.length - 1;
+        }
+        if (k >= 0 && undefined === useList[k]) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent) && undefined === lhs[pkeys[k]]) {
+            peerList[i][1] = k;
+            peerList[i][2] = true;
+            useList[k] = i;
+          }
+        }
+      }
+    }
+  }
+
   function indexOfArray(array) {
     return function(i) {
       return array[i];
@@ -523,18 +628,49 @@
     };
   }
 
-  function orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
+  function indexOfObjectKey(object) {
+    var keys = Object.keys(object);
+    return function (i) {
+      return keys[i];
+    };
+  }
+
+  function pathOfObject(peerList, lhs) {
+    var keys = Object.keys(lhs);
+    return function (i) {
+      return keys[peerList[i][0]];
+    };
+  }
+
+  function targetOfObject(peerList, lhs, keyMoved) {
+    var keys = Object.keys(lhs);
+    return function (i) { // eslint-disable-line consistent-return
+      if (i !== 0) {
+        var key = keys[peerList[i - 1][0]];
+        return (undefined !== keyMoved[key]) ? keyMoved[key] : key;
+      }
+    };
+  }
+
+  function orderObjectDiff(lhs, rhs, changes, prefilter, path, type, orderIndependent) {
     var i, j, k;
     var peerList = [];
     var useList = [];
     var offset;
     var ll, rl;
-    compareArray(lhs, rhs, peerList, useList, orderIndependent);
-    var indexOfLhs = indexOfArray(lhs);
-    var indexOfRhs = indexOfArray(rhs);
-    var pathOfItem = pathOfArray();
-    var targetOfItem = targetOfArray();
-    if (orderIndependent) {
+    if (type === 'object') {
+      compareObject(lhs, rhs, peerList, useList, orderIndependent);
+    } else {
+      compareArray(lhs, rhs, peerList, useList, orderIndependent);
+    }
+    var keyMoved = {};
+    var indexOfLhs = (type === 'object') ? indexOfObject(lhs) : indexOfArray(lhs);
+    var indexOfRhs = (type === 'object') ? indexOfObject(rhs) : indexOfArray(rhs);
+    var pathOfItem = (type === 'object') ? pathOfObject(peerList, lhs) : pathOfArray();
+    var targetOfItem = (type === 'object') ? targetOfObject(peerList, lhs, keyMoved) : targetOfArray();
+    var indexOfLhsKey = (type === 'object') ? indexOfObjectKey(lhs) : undefined;
+    var indexOfRhsKey = (type === 'object') ? indexOfObjectKey(rhs) : undefined;
+    if ((type === 'array' && orderIndependent) || (type === 'object' && orderIndependent !== false)) {
       offset = 0;
       for (i = 0, j = 0; i < useList.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
@@ -563,6 +699,14 @@
             k = peerList[i][1];
             if (!prefilter(path, pathOfItem(i), 'E', indexOfLhs(peerList[i][0]), indexOfRhs(k))) {
               orderDiff(indexOfLhs(peerList[i][0]), indexOfRhs(k), changes, prefilter, path.concat(pathOfItem(i)), null, orderIndependent); // eslint-disable-line no-use-before-define
+            }
+          }
+          if (type === 'object') {
+            if (indexOfLhsKey(peerList[i][0]) !== indexOfRhsKey(peerList[i][1])) {
+              if (!prefilter(path, pathOfItem(i), 'E', undefined, indexOfRhsKey(peerList[i][1]))) {
+                changes.push(new DiffEdit(path.concat(pathOfItem(i)), undefined, indexOfRhsKey(peerList[i][1])));
+                keyMoved[pathOfItem(i)] = indexOfRhsKey(peerList[i][1]);
+              }
             }
           }
           ++i;
@@ -603,6 +747,14 @@
               orderDiff(indexOfLhs(peerList[i][0]), indexOfRhs(k), changes, prefilter, path.concat(pathOfItem(i)), null, orderIndependent); // eslint-disable-line no-use-before-define
             }
           }
+          if (type === 'object') {
+            if (indexOfLhsKey(peerList[i][0]) !== indexOfRhsKey(peerList[i][1])) {
+              if (!prefilter(path, pathOfItem(i), 'E', undefined, indexOfRhsKey(peerList[i][1]))) {
+                changes.push(new DiffEdit(path.concat(pathOfItem(i)), undefined, indexOfRhsKey(peerList[i][1])));
+                keyMoved[pathOfItem(i)] = indexOfRhsKey(peerList[i][1]);
+              }
+            }
+          }
           ++i;
           continue;
         }
@@ -622,88 +774,20 @@
           }
         }
         for (j = 0; j < rl; ++j) {
-          changes.push(new DiffMoved(path.concat(k + j), targetOfItem(i + j), indexOfLhs(peerList[k + j][0])));
+          changes.push(new DiffMoved(path.concat(pathOfItem(k + j)), targetOfItem(i + j), indexOfLhs(peerList[k + j][0])));
           if (!prefilter(path, pathOfItem(k + j), 'E', indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]))) {
             orderDiff(indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]), changes, prefilter, path.concat(pathOfItem(i + j)), null, orderIndependent); // eslint-disable-line no-use-before-define
           }
+          if (type === 'object') {
+            if (indexOfLhsKey(peerList[k + j][0]) !== indexOfRhsKey(peerList[k + j][1])) {
+              if (!prefilter(path, pathOfItem(k + j), 'E', undefined, indexOfRhsKey(peerList[k + j][1]))) {
+                changes.push(new DiffEdit(path.concat(pathOfItem(k + j)), undefined, indexOfRhsKey(peerList[k + j][1])));
+                keyMoved[pathOfItem(k + j)] = indexOfRhsKey(peerList[k + j][1]);
+              }
+            }
+          }
         }
         peerList.splice(i, 0, ...peerList.splice(k, rl));
-        i += rl;
-      }
-    }
-  }
-
-  function orderObjectDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
-    var i, j, k;
-    var akeys = Object.keys(lhs);
-    var pkeys = Object.keys(rhs);
-    var ll, rl;
-    if (orderIndependent !== false) {
-      for (i = 0; i < akeys.length; ++i) {
-        k = akeys[i];
-        if (pkeys.indexOf(k) === -1) {
-          changes.push(new DiffDeleted(path.concat(k), lhs[k]));
-        } else {
-          orderDiff(lhs[k], rhs[k], changes, prefilter, path.concat(k), null, orderIndependent); // eslint-disable-line no-use-before-define
-        }
-      }
-      for (i = 0; i < pkeys.length; ++i) {
-        k = pkeys[i];
-        if (akeys.indexOf(k) === -1) {
-          changes.push(new DiffNew(path.concat(k), rhs[k]));
-        }
-      }
-    } else {
-      for (i = 0; i < pkeys.length;) {
-        if (pkeys.indexOf(akeys[i]) === -1) {
-          changes.push(new DiffDeleted(path.concat(akeys[i]), lhs[akeys[i]]));
-          akeys.splice(i, 1);
-          if (akeys.indexOf(pkeys[i]) === -1) {
-            changes.push(new DiffNew(path.concat(pkeys[i]), rhs[pkeys[i]]));
-            akeys.splice(i, 0, pkeys[i]);
-            ++i;
-            continue;
-          }
-        }
-        if (akeys.indexOf(pkeys[i]) === -1) {
-          changes.push(new DiffNew(path.concat(pkeys[i]), rhs[pkeys[i]]));
-          akeys.splice(i, 0, pkeys[i]);
-          ++i;
-          continue;
-        }
-        if (akeys[i] === pkeys[i]) {
-          k = akeys[i];
-          orderDiff(lhs[k], rhs[k], changes, prefilter, path.concat(k), null, orderIndependent); // eslint-disable-line no-use-before-define
-          ++i;
-          continue;
-        }
-        j = akeys.indexOf(pkeys[i]);
-        for (rl = 1; rl < akeys.length - j && akeys[j + rl] === pkeys[rl]; ++rl); // eslint-disable-line curly
-        if (akeys.indexOf(pkeys[pkeys.indexOf(akeys[i]) - 1]) !== -1) {
-          j = pkeys.indexOf(akeys[i]);
-          for (ll = 1; ll < akeys.length - i && akeys[i + ll] === pkeys[j + ll]; ++ll); // eslint-disable-line curly
-          if (ll < rl) {
-            rl = pkeys[pkeys.indexOf(akeys[i]) - 1];
-            for (j = 0; j < ll; ++j) {
-              k = akeys[i + j];
-              changes.push(new DiffMoved(path.concat(k), rl, lhs[k]));
-              orderDiff(lhs[k], rhs[k], changes, prefilter, path.concat(k), null, orderIndependent); // eslint-disable-line no-use-before-define
-              rl = k;
-            }
-            rl = pkeys.indexOf(akeys[i]);
-            akeys.splice(rl + 1 - ll, 0, ...akeys.splice(i, ll));
-            continue;
-          }
-        }
-        ll = (i === 0 ? '' : akeys[i - 1]);
-        for (j = 0; j < rl; ++j) {
-          k = pkeys[i];
-          changes.push(new DiffMoved(path.concat(k), ll, lhs[k]));
-          orderDiff(lhs[k], rhs[k], changes, prefilter, path.concat(k), null, orderIndependent); // eslint-disable-line no-use-before-define
-          ll = k;
-        }
-        ll = akeys.indexOf(pkeys[i]);
-        akeys.splice(i, 0, ...akeys.splice(ll, rl));
         i += rl;
       }
     }
@@ -755,9 +839,9 @@
       changes.push(new DiffEdit(currentPath, lhs, rhs));
     } else if (ltype === 'object' && lhs !== null) {
       if (Array.isArray(lhs)) {
-        orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent);
+        orderObjectDiff(lhs, rhs, changes, prefilter, path, 'array', orderIndependent);
       } else {
-        orderObjectDiff(lhs, rhs, changes, prefilter, path, orderIndependent);
+        orderObjectDiff(lhs, rhs, changes, prefilter, path, 'object', orderIndependent);
       }
     } else if (lhs !== rhs) {
       if (!(ltype === 'number' && isNaN(lhs) && isNaN(rhs))) {
