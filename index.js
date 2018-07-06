@@ -498,6 +498,31 @@
     useList.length = rhs.length;
   }
 
+  function indexOfArray(array) {
+    return function(i) {
+      return array[i];
+    };
+  }
+
+  function pathOfArray() {
+    return function (i) {
+      return i;
+    };
+  }
+
+  function targetOfArray() {
+    return function (i) {
+      return i;
+    };
+  }
+
+  function indexOfObject(object) {
+    var keys = Object.keys(object);
+    return function (i) {
+      return object[keys[i]];
+    };
+  }
+
   function orderArrayDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
     var i, j, k;
     var peerList = [];
@@ -505,24 +530,28 @@
     var offset;
     var ll, rl;
     compareArray(lhs, rhs, peerList, useList, orderIndependent);
+    var indexOfLhs = indexOfArray(lhs);
+    var indexOfRhs = indexOfArray(rhs);
+    var pathOfItem = pathOfArray();
+    var targetOfItem = targetOfArray();
     if (orderIndependent) {
       offset = 0;
-      for (i = 0, j = 0; i < rhs.length + offset;) {
+      for (i = 0, j = 0; i < useList.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
-          if (prefilter(path, i, 'D', lhs[peerList[i][0]])) {
+          if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
             ++i;
           } else {
-            changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
+            changes.push(new DiffDeleted(path.concat(pathOfItem(i)), indexOfLhs(peerList[i][0])));
             peerList.splice(i, 1);
           }
           continue;
         }
         if (undefined === useList[j]) {
-          if (prefilter(path, i, 'N', undefined, rhs[j])) {
+          if (prefilter(path, pathOfItem(i), 'N', undefined, indexOfRhs(j))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(i), rhs[j]));
+            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(j)));
             peerList.splice(i, 0, [-1, j]);
             ++i;
           }
@@ -532,8 +561,8 @@
         if (peerList[i] && peerList[i][1] !== -1) {
           if (peerList[i][2]) {
             k = peerList[i][1];
-            if (!prefilter(path, i, 'E', lhs[peerList[i][0]], rhs[k])) {
-              orderDiff(lhs[peerList[i][0]], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+            if (!prefilter(path, pathOfItem(i), 'E', indexOfLhs(peerList[i][0]), indexOfRhs(k))) {
+              orderDiff(indexOfLhs(peerList[i][0]), indexOfRhs(k), changes, prefilter, path.concat(pathOfItem(i)), null, orderIndependent); // eslint-disable-line no-use-before-define
             }
           }
           ++i;
@@ -546,22 +575,22 @@
       }
     } else {
       offset = 0;
-      for (i = 0; i < rhs.length + offset;) {
+      for (i = 0; i < useList.length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
-          if (prefilter(path, i, 'D', lhs[peerList[i][0]])) {
+          if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
             ++i;
           } else {
-            changes.push(new DiffDeleted(path.concat(i), lhs[peerList[i][0]]));
+            changes.push(new DiffDeleted(path.concat(pathOfItem(i)), indexOfLhs(peerList[i][0])));
             peerList.splice(i, 1);
           }
           continue;
         }
         if (undefined === useList[i - offset]) {
-          if (prefilter(path, i, 'N', lhs, rhs)) {
+          if (prefilter(path, pathOfItem(i), 'N', undefined, indexOfRhs(i - offset))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(i), rhs[i - offset]));
+            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(i - offset)));
             peerList.splice(i, 0, [-1, i - offset]);
             ++i;
           }
@@ -570,8 +599,8 @@
         if (peerList[i][1] === i - offset) {
           if (peerList[i][2]) {
             k = peerList[i][1];
-            if (!prefilter(path, i, 'E', lhs[peerList[i][0]], rhs[k])) {
-              orderDiff(lhs[peerList[i][0]], rhs[k], changes, prefilter, path.concat(i), null, orderIndependent); // eslint-disable-line no-use-before-define
+            if (!prefilter(path, pathOfItem(i), 'E', indexOfLhs(peerList[i][0]), indexOfRhs(k))) {
+              orderDiff(indexOfLhs(peerList[i][0]), indexOfRhs(k), changes, prefilter, path.concat(pathOfItem(i)), null, orderIndependent); // eslint-disable-line no-use-before-define
             }
           }
           ++i;
@@ -586,21 +615,16 @@
             rl = peerList[i][1] - 1;
             for (k = i + ll; peerList[k][1] !== rl; ++k); // eslint-disable-line curly
             for (j = 0; j < ll; ++j) {
-              changes.push(new DiffMoved(path.concat(i), k + 1, lhs[peerList[i + j][0]]));
-              // if (peerList[i + j][2]) {
-              //   if (!prefilter(path, k + 1, 'E', lhs[peerList[i + j][0]], rhs[peerList[i + j][1]])) {
-              //     orderDiff(lhs[peerList[i][0]], rhs[peerList[i + j][1]], changes, prefilter, path.concat(k + 1), null, orderIndependent); // eslint-disable-line no-use-before-define
-              //   }
-              // }
+              changes.push(new DiffMoved(path.concat(pathOfItem(i)), targetOfItem(k + 1), indexOfLhs(peerList[i + j][0])));
             }
             peerList.splice(k + 1 - ll, 0, ...peerList.splice(i, ll));
             continue;
           }
         }
         for (j = 0; j < rl; ++j) {
-          changes.push(new DiffMoved(path.concat(k + j), i + j, lhs[peerList[k + j][0]]));
-          if (!prefilter(path, k + j, 'E', lhs[peerList[k + j][0]], rhs[peerList[k + j][1]])) {
-            orderDiff(lhs[peerList[k + j][0]], rhs[peerList[k + j][1]], changes, prefilter, path.concat(i + j), null, orderIndependent); // eslint-disable-line no-use-before-define
+          changes.push(new DiffMoved(path.concat(k + j), targetOfItem(i + j), indexOfLhs(peerList[k + j][0])));
+          if (!prefilter(path, pathOfItem(k + j), 'E', indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]))) {
+            orderDiff(indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]), changes, prefilter, path.concat(pathOfItem(i + j)), null, orderIndependent); // eslint-disable-line no-use-before-define
           }
         }
         peerList.splice(i, 0, ...peerList.splice(k, rl));
