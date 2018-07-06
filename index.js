@@ -509,12 +509,12 @@
       if (undefined !== rhs[k]) {
         useList[pkeys.indexOf(k)] = i;
         if (objectEqual(lhs[k], rhs[k], orderIndependent)) {
-          peerList.push([i, pkeys.indexOf(k)]);
+          peerList.push([k, pkeys.indexOf(k)]);
         } else {
-          peerList.push([i, pkeys.indexOf(k), true]);
+          peerList.push([k, pkeys.indexOf(k), true]);
         }
       } else {
-        peerList.push([i, -1]);
+        peerList.push([k, -1]);
       }
     }
     for (lastPeer = undefined, i = 0; i < akeys.length; ++i) {
@@ -575,7 +575,7 @@
           k = 0;
         }
         if (k < pkeys.length && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent) && undefined === lhs[pkeys[k]]) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -593,7 +593,7 @@
           k = pkeys.length - 1;
         }
         if (k >= 0 && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent) && undefined === lhs[pkeys[k]]) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -601,6 +601,7 @@
         }
       }
     }
+    useList.length = pkeys.length;
   }
 
   function indexOfArray(array) {
@@ -621,33 +622,49 @@
     };
   }
 
-  function indexOfObject(object) {
+  function indexOfObjectLhs(object) {
+    return function (i) {
+      return object[i];
+    };
+  }
+
+  function indexOfObjectRhs(object) {
     var keys = Object.keys(object);
     return function (i) {
       return object[keys[i]];
     };
   }
 
-  function indexOfObjectKey(object) {
+  function indexOfObjectKeyLhs() {
+    return function (i) {
+      return i;
+    };
+  }
+
+  function indexOfObjectKeyRhs(object) {
     var keys = Object.keys(object);
     return function (i) {
       return keys[i];
     };
   }
 
-  function pathOfObject(peerList, lhs) {
-    var keys = Object.keys(lhs);
+  function pathOfObject(peerList) {
     return function (i) {
-      return keys[peerList[i][0]];
+      return peerList[i][0];
     };
   }
 
-  function targetOfObject(peerList, lhs, keyMoved) {
-    var keys = Object.keys(lhs);
+  function pathOfNewObject(peerList, rhs) {
+    var keys = Object.keys(rhs);
+    return function (i) {
+      return keys[peerList[i][1]];
+    };
+  }
+
+  function targetOfObject(peerList) {
     return function (i) { // eslint-disable-line consistent-return
       if (i !== 0) {
-        var key = keys[peerList[i - 1][0]];
-        return (undefined !== keyMoved[key]) ? keyMoved[key] : key;
+        return peerList[i - 1][0];
       }
     };
   }
@@ -663,13 +680,14 @@
     } else {
       compareArray(lhs, rhs, peerList, useList, orderIndependent);
     }
-    var keyMoved = {};
-    var indexOfLhs = (type === 'object') ? indexOfObject(lhs) : indexOfArray(lhs);
-    var indexOfRhs = (type === 'object') ? indexOfObject(rhs) : indexOfArray(rhs);
-    var pathOfItem = (type === 'object') ? pathOfObject(peerList, lhs) : pathOfArray();
-    var targetOfItem = (type === 'object') ? targetOfObject(peerList, lhs, keyMoved) : targetOfArray();
-    var indexOfLhsKey = (type === 'object') ? indexOfObjectKey(lhs) : undefined;
-    var indexOfRhsKey = (type === 'object') ? indexOfObjectKey(rhs) : undefined;
+    var indexOfLhs = (type === 'object') ? indexOfObjectLhs(lhs) : indexOfArray(lhs);
+    var indexOfRhs = (type === 'object') ? indexOfObjectRhs(rhs) : indexOfArray(rhs);
+    var pathOfItem = (type === 'object') ? pathOfObject(peerList) : pathOfArray();
+    var pathOfNewItem = (type === 'object') ? pathOfNewObject(peerList, rhs) : pathOfArray();
+    var indexOfNewItem = (type === 'object') ? pathOfNewObject(peerList, rhs) : function () {return -1;};
+    var targetOfItem = (type === 'object') ? targetOfObject(peerList) : targetOfArray();
+    var indexOfLhsKey = (type === 'object') ? indexOfObjectKeyLhs(lhs) : undefined;
+    var indexOfRhsKey = (type === 'object') ? indexOfObjectKeyRhs(rhs) : undefined;
     if ((type === 'array' && orderIndependent) || (type === 'object' && orderIndependent !== false)) {
       offset = 0;
       for (i = 0, j = 0; i < useList.length + offset;) {
@@ -684,11 +702,11 @@
           continue;
         }
         if (undefined === useList[j]) {
-          if (prefilter(path, pathOfItem(i), 'N', undefined, indexOfRhs(j))) {
+          if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(j))) {
             --offset;
           } else {
             changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(j)));
-            peerList.splice(i, 0, [-1, j]);
+            peerList.splice(i, 0, [indexOfNewItem(i), j]);
             ++i;
           }
           ++j;
@@ -705,7 +723,7 @@
             if (indexOfLhsKey(peerList[i][0]) !== indexOfRhsKey(peerList[i][1])) {
               if (!prefilter(path, pathOfItem(i), 'E', undefined, indexOfRhsKey(peerList[i][1]))) {
                 changes.push(new DiffEdit(path.concat(pathOfItem(i)), undefined, indexOfRhsKey(peerList[i][1])));
-                keyMoved[pathOfItem(i)] = indexOfRhsKey(peerList[i][1]);
+                peerList[i][0] = indexOfRhsKey(peerList[i][1]);
               }
             }
           }
@@ -731,11 +749,11 @@
           continue;
         }
         if (undefined === useList[i - offset]) {
-          if (prefilter(path, pathOfItem(i), 'N', undefined, indexOfRhs(i - offset))) {
+          if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(i - offset))) {
             --offset;
           } else {
             changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(i - offset)));
-            peerList.splice(i, 0, [-1, i - offset]);
+            peerList.splice(i, 0, [indexOfNewItem(i), i - offset]);
             ++i;
           }
           continue;
@@ -751,7 +769,7 @@
             if (indexOfLhsKey(peerList[i][0]) !== indexOfRhsKey(peerList[i][1])) {
               if (!prefilter(path, pathOfItem(i), 'E', undefined, indexOfRhsKey(peerList[i][1]))) {
                 changes.push(new DiffEdit(path.concat(pathOfItem(i)), undefined, indexOfRhsKey(peerList[i][1])));
-                keyMoved[pathOfItem(i)] = indexOfRhsKey(peerList[i][1]);
+                peerList[i][0] = indexOfRhsKey(peerList[i][1]);
               }
             }
           }
@@ -767,28 +785,28 @@
             rl = peerList[i][1] - 1;
             for (k = i + ll; peerList[k][1] !== rl; ++k); // eslint-disable-line curly
             for (j = 0; j < ll; ++j) {
-              changes.push(new DiffMoved(path.concat(pathOfItem(i)), targetOfItem(k + 1), indexOfLhs(peerList[i + j][0])));
+              changes.push(new DiffMoved(path.concat(pathOfItem(i)), targetOfItem(k + 1), indexOfLhs(peerList[i][0])));
+              peerList.splice(k + 1, 0, peerList.splice(i, 1)[0]);
             }
-            peerList.splice(k + 1 - ll, 0, ...peerList.splice(i, ll));
             continue;
           }
         }
         for (j = 0; j < rl; ++j) {
           changes.push(new DiffMoved(path.concat(pathOfItem(k + j)), targetOfItem(i + j), indexOfLhs(peerList[k + j][0])));
-          if (!prefilter(path, pathOfItem(k + j), 'E', indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]))) {
-            orderDiff(indexOfLhs(peerList[k + j][0]), indexOfRhs(peerList[k + j][1]), changes, prefilter, path.concat(pathOfItem(i + j)), null, orderIndependent); // eslint-disable-line no-use-before-define
+          peerList.splice(i, 0, peerList.splice(k + j, 1)[0]);
+          if (!prefilter(path, pathOfItem(i + j), 'E', indexOfLhs(peerList[i + j][0]), indexOfRhs(peerList[i + j][1]))) {
+            orderDiff(indexOfLhs(peerList[i + j][0]), indexOfRhs(peerList[i + j][1]), changes, prefilter, path.concat(pathOfItem(i + j)), null, orderIndependent); // eslint-disable-line no-use-before-define
           }
           if (type === 'object') {
-            if (indexOfLhsKey(peerList[k + j][0]) !== indexOfRhsKey(peerList[k + j][1])) {
-              if (!prefilter(path, pathOfItem(k + j), 'E', undefined, indexOfRhsKey(peerList[k + j][1]))) {
-                changes.push(new DiffEdit(path.concat(pathOfItem(k + j)), undefined, indexOfRhsKey(peerList[k + j][1])));
-                keyMoved[pathOfItem(k + j)] = indexOfRhsKey(peerList[k + j][1]);
+            if (indexOfLhsKey(peerList[i + j][0]) !== indexOfRhsKey(peerList[i + j][1])) {
+              if (!prefilter(path, pathOfItem(i + j), 'E', undefined, indexOfRhsKey(peerList[i + j][1]))) {
+                changes.push(new DiffEdit(path.concat(pathOfItem(i + j)), undefined, indexOfRhsKey(peerList[i + j][1])));
+                peerList[i + j][0] = indexOfRhsKey(peerList[i + j][1]);
               }
             }
           }
+          ++i;
         }
-        peerList.splice(i, 0, ...peerList.splice(k, rl));
-        i += rl;
       }
     }
   }
