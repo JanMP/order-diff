@@ -692,17 +692,17 @@
     function doDiffIndex(index) {
       var kl = peerList[index][0];
       var kr = peerList[index][1];
-      if (peerList[index][2]) {
-        if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
-          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
-        }
-      }
       if (type === 'object') {
         if (kl !== indexOfRhsKey(kr)) {
           if (!prefilter(path, pathOfItem(index), 'R', indexOfLhs(index), indexOfRhsKey(kr))) {
             changes.push(new DiffReplace(path.concat(pathOfItem(index)), indexOfLhs(index), indexOfRhsKey(kr)));
             peerList[index][0] = indexOfRhsKey(kr);
           }
+        }
+      }
+      if (peerList[index][2]) {
+        if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
+          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
         }
       }
     }
@@ -957,8 +957,21 @@
     if (!it) {
       return false;
     }
+    if (source) {
+      th = reachByPath(source, path);
+      if (!th) {
+        return false;
+      }
+    }
     switch (change.kind) {
       case 'M':
+        if (source) {
+          if (typeof last !== 'number') {
+            if (realTypeOf(change.lhs) !== realTypeOf(th[change.rhs])) {
+              return false;
+            }
+          }
+        }
         if (typeof last === 'number') {
           it.splice(change.rhs, 0, it.splice(last, 1)[0]);
         } else {
@@ -966,21 +979,30 @@
         }
         break;
       case 'D':
+        if (realTypeOf(it[last]) !== realTypeOf(change.lhs)) {
+          return false;
+        }
         delete it[last];
         break;
       case 'E':
-        if (typeof last === 'number') {
-          it[last] = change.rhs;
-        } else {
-          it[last] = change.rhs;
+        if (source) {
+          if (typeof last === 'number') {
+            if (!arrayContain(th, change.rhs)) {
+              return false;
+            }
+          } else {
+            if (!objectEqual(th[last], change.rhs, false)) {
+              return false;
+            }
+          }
         }
+        if (realTypeOf(it[last]) !== realTypeOf(change.lhs)) {
+          return false;
+        }
+        it[last] = change.rhs;
         break;
       case 'N':
         if (source) {
-          th = reachByPath(target, path);
-          if (!th) {
-            return false;
-          }
           if (typeof last === 'number') {
             th = th[change.lhs];
           } else {
