@@ -88,12 +88,10 @@
       value: origin,
       enumerable: true
     });
-    if (typeof target !== 'undefined') {
-      Object.defineProperty(this, 'rhs', {
-        value: target,
-        enumerable: true
-      });
-    }
+    Object.defineProperty(this, 'rhs', {
+      value: target,
+      enumerable: true
+    });
   }
   inherits(DiffMoved, Diff);
 
@@ -918,6 +916,14 @@
     },
     orderIndepHash: {
       value: getOrderIndependentHash,
+      enumerable: true
+    },
+    objectSimilar: {
+      value: objectSimilar,
+      enumerable: true
+    },
+    objectEqual: {
+      value: objectEqual,
       enumerable: true
     },
     applyDiff: {
