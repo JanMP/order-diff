@@ -864,7 +864,7 @@
         }
       } : undefined;
     var changes = observableDiff(lhs, rhs, observer, prefilter, orderIndependent, scale);
-    return (accum) ? accum : (changes.length) ? changes : undefined;
+    return (accum) ? accum : changes;
   }
 
   function reachByPath(object, path) {
@@ -948,6 +948,9 @@
       source = undefined;
     }
     var path = change.path;
+    if (!path) {
+      return true;
+    }
     var last = path[path.length - 1];
     var it = reachByPath(target, path);
     var th;
@@ -1004,23 +1007,41 @@
     return true;
   }
 
-  function applyDiff(target, source, filter, changes, prefilter, orderIndependent, scale) {
+  function applyDiff(target, source, changes, filter, prefilter, orderIndependent, scale) {
     if (!Array.isArray(changes)) {
       scale = orderIndependent;
       orderIndependent = prefilter;
-      prefilter = changes;
+      prefilter = filter;
+      filter = changes;
       changes = undefined;
     }
+    var failList = [];
     var onChange = function (change) {
       if (!filter || filter(target, source, change)) {
-        applyChange(target, source, change);
+        if (!change.path) {
+          target = change.rhs;
+          throw 'FullReplace';
+        }
+        if (!applyChange(target, source, change)) {
+          failList.push(change);
+        }
       }
     };
-    if (!changes) {
-      observableDiff(target, source, onChange, prefilter, orderIndependent, scale);
-    } else {
-      changes.forEach(onChange);
+    try {
+      if (!changes) {
+        observableDiff(target, source, onChange, prefilter, orderIndependent, scale);
+      } else {
+        changes.forEach(onChange);
+      }
+    } catch (e) {
+      if (e === 'FullReplace') {
+        return target;
+      }
     }
+    if (failList.length) {
+      throw failList;
+    }
+    return target;
   }
 
   Object.defineProperties(accumulateDiff, {
