@@ -645,7 +645,6 @@
     var i, j, k;
     var peerList = [];
     var useList = [];
-    var offset;
     var ll, rl;
     if (type === 'object') {
       compareObject(lhs, rhs, peerList, useList, orderIndependent);
@@ -678,9 +677,10 @@
       }
     }
 
+    var length = useList.length;
+    var offset = 0;
     if ((type === 'array' && orderIndependent) || (type === 'object' && orderIndependent !== false)) {
-      offset = 0;
-      for (i = 0, j = 0; i < useList.length + offset;) {
+      for (i = 0, j = 0; i < length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
@@ -713,8 +713,7 @@
         }
       }
     } else {
-      offset = 0;
-      for (i = 0; i < useList.length + offset;) {
+      for (i = 0; i < length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
@@ -752,7 +751,7 @@
         }
         for (rl = 1; rl < peerList.length - k && peerList[k + rl][1] === i - offset + rl; ++rl); // eslint-disable-line curly
         if (undefined !== useList[peerList[i][1] - 1]) {
-          j = peerList[i][1];
+          j = peerList[i][1]; // temp use of j
           for (ll = 1; ll < peerList.length - i && peerList[i + ll][1] === j + ll; ++ll); // eslint-disable-line curly
           if (ll < rl) {
             rl = peerList[i][1] - 1;
