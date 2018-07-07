@@ -21,7 +21,7 @@
       root.OrderDiff = orderDiff;
   }
 }(this, function(root) {
-  var validKinds = ['N', 'E', 'M', 'D'];
+  var validKinds = ['N', 'E', 'M', 'D', 'R'];
 
   // nodejs compatible on server side and in the browser.
   function inherits(ctor, superCtor) {
@@ -64,8 +64,14 @@
   }
   inherits(DiffEdit, Diff);
 
-  function DiffNew(path, value) {
+  function DiffNew(path, value, target) {
     DiffNew.super_.call(this, 'N', path);
+    if (typeof target !== 'undefined') {
+      Object.defineProperty(this, 'lhs', {
+        value: target,
+        enumerable: true
+      });
+    }
     Object.defineProperty(this, 'rhs', {
       value: value,
       enumerable: true
@@ -94,6 +100,19 @@
     });
   }
   inherits(DiffMoved, Diff);
+
+  function DiffReplace(path, origin, key) {
+    DiffReplace.super_.call(this, 'R', path);
+    Object.defineProperty(this, 'lhs', {
+      value: origin,
+      enumerable: true
+    });
+    Object.defineProperty(this, 'rhs', {
+      value: key,
+      enumerable: true
+    });
+  }
+  inherits(DiffReplace, Diff);
 
   function getFilter(prefilter) {
     if (prefilter) {
@@ -323,6 +342,17 @@
       }
       return true;
     }
+  }
+
+  function arrayContain(array, value) {
+    var hash = getOrderIndependentHash(value, false);
+    for (var i = 0; i < array.length; ++i) {
+      if (hash === getOrderIndependentHash(array[i], false)
+        && objectEqual(array[i], value, false)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function compareArray(lhs, rhs, peerList, useList, orderIndependent, scale) {
@@ -669,8 +699,8 @@
       }
       if (type === 'object') {
         if (kl !== indexOfRhsKey(kr)) {
-          if (!prefilter(path, pathOfItem(index), 'E', undefined, indexOfRhsKey(kr))) {
-            changes.push(new DiffEdit(path.concat(pathOfItem(index)), undefined, indexOfRhsKey(kr)));
+          if (!prefilter(path, pathOfItem(index), 'R', indexOfLhs(index), indexOfRhsKey(kr))) {
+            changes.push(new DiffReplace(path.concat(pathOfItem(index)), indexOfLhs(index), indexOfRhsKey(kr)));
             peerList[index][0] = indexOfRhsKey(kr);
           }
         }
@@ -695,7 +725,8 @@
           if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(j))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(j)));
+            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(j),
+              (type === 'object') ? undefined : targetOfItem(j)));
             peerList.splice(i, 0, [indexOfNewItem(i), j]);
             ++i;
           }
@@ -728,7 +759,8 @@
           if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(i - offset))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(i - offset)));
+            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(i - offset),
+              (type === 'object') ? targetOfItem(i) : targetOfItem(i - offset)));
             peerList.splice(i, 0, [indexOfNewItem(i), i - offset]);
             ++i;
           }
@@ -835,44 +867,149 @@
     return (accum) ? accum : (changes.length) ? changes : undefined;
   }
 
-  function applyChange(target, source, change) {
-    if (typeof change === 'undefined' && source && ~validKinds.indexOf(source.kind)) {
-      change = source;
+  function reachByPath(object, path) {
+    path = path || [];
+    var i = -1,
+      last = path.length - 1;
+    if (last === -1) {
+      return true;
     }
-    if (target && change && change.kind) {
-      var it = target,
-        i = -1,
-        last = change.path ? change.path.length - 1 : 0;
-      while (++i < last) {
-        if (typeof it[change.path[i]] === 'undefined') {
-          it[change.path[i]] = (typeof change.path[i + 1] !== 'undefined' && typeof change.path[i + 1] === 'number') ? [] : {};
-        }
-        it = it[change.path[i]];
+    while (++i < last) {
+      if (typeof object[path[i]] === 'undefined') {
+        throw false;
       }
-      switch (change.kind) {
-        case 'A':
-          if (change.path && typeof it[change.path[i]] === 'undefined') {
-            it[change.path[i]] = [];
-          }
-          // applyArrayChange(change.path ? it[change.path[i]] : it, change.index, change.item);
-          break;
-        case 'D':
-          delete it[change.path[i]];
-          break;
-        case 'E':
-        case 'N':
-          it[change.path[i]] = change.rhs;
-          break;
-      }
+      object = object[path[i]];
+    }
+    var lastType = (typeof path[last] === 'number') ? 'array' : 'object';
+    if (realTypeOf(object) !== lastType) {
+      return false;
+    }
+    return object;
+  }
+
+  function objectInsertIndex(object, key, index, value) {
+    var keys = Object.keys(object);
+    var help = {};
+    for (; index < keys.length; ++index) {
+      help[keys[index]] = object[keys[index]];
+      delete object[keys[index]];
+    }
+    object[key] = value;
+    for (key in help) {
+      object[key] = help[key];
     }
   }
 
-  function applyDiff(target, source, prefilter, orderIndependent) {
+  function objectInsert(object, key, target, value) {
+    var keys = Object.keys(object);
+    var i;
+    if (undefined === target) {
+      i = 0;
+    } else {
+      i = keys.indexOf(target);
+      // can't find the target in the object insert into the last.
+      if (i === -1) {
+        i = keys.length;
+      } else {
+        ++i;
+      }
+    }
+    objectInsertIndex(object, key, i, value);
+  }
+
+  function objectMove(object, key, target, value) {
+    var v = object[key];
+    if (undefined !== v) {
+      // use self value for move
+      value = v;
+      delete object[key];
+    }
+    objectInsert(object, key, target, value);
+  }
+
+  function objectReplaceKey(object, key, newKey, value) {
+    var v = object[key];
+    var i;
+    if (undefined !== v) {
+      // use self value for replace
+      value = v;
+      i = Object.keys(object).indexOf(key);
+      delete object[key];
+    } else {
+      // can't fine the sub key of object, add the value
+      i = Object.keys(object).length;
+    }
+    objectInsertIndex(object, newKey, i, value);
+  }
+
+  function applyChange(target, source, change) {
+    if (typeof change === 'undefined' && source && ~validKinds.indexOf(source.kind)) {
+      change = source;
+      source = undefined;
+    }
+    var path = change.path;
+    var last = path[path.length - 1];
+    var it = reachByPath(target, path);
+    var th;
+    if (!it) {
+      return false;
+    }
+    switch (change.kind) {
+      case 'M':
+        if (typeof last === 'number') {
+          it.splice(change.rhs, 0, it.splice(last, 1)[0]);
+        } else {
+          objectMove(it, last, change.rhs, change.lhs);
+        }
+        break;
+      case 'D':
+        delete it[last];
+        break;
+      case 'E':
+        if (typeof last === 'number') {
+          it[last] = change.rhs;
+        } else {
+          it[last] = change.rhs;
+        }
+        break;
+      case 'N':
+        if (source) {
+          th = reachByPath(target, path);
+          if (!th) {
+            return false;
+          }
+          if (typeof last === 'number') {
+            th = th[change.lhs];
+          } else {
+            th = th[last];
+          }
+          if (!objectEqual(th, change.rhs, false)) {
+            return false;
+          }
+        }
+        if (change.lhs) {
+          objectInsert(it, last, change.lhs, change.rhs);
+        } else if (typeof last === 'number') {
+          it.splice(last, 0, change.rhs);
+        } else {
+          it[last] = change.rhs;
+        }
+        break;
+      case 'R':
+        objectReplaceKey(it, last, change.rhs, change.lhs);
+        break;
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  function applyDiff(target, source, filter, orderIndependent) {
     if (target && source) {
       var onChange = function (change) {
         applyChange(target, source, change);
       };
-      observableDiff(target, source, onChange, prefilter, orderIndependent);
+      observableDiff(target, source, onChange, filter, orderIndependent);
     }
   }
 
