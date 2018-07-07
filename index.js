@@ -521,17 +521,10 @@
       } else {
         k = 0;
       }
-      if (k < pkeys.length && undefined === useList[k]) {
-        if (akeys[i] === pkeys[k]) {
-          peerList[i][1] = k;
-          useList[k] = i;
-          if (!objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
-            peerList[i][2] = true;
-          }
-        } else if (objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
-          peerList[i][1] = k;
-          useList[k] = i;
-        }
+      if (k < pkeys.length && undefined === useList[k]
+        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+        peerList[i][1] = k;
+        useList[k] = i;
       }
     }
     for (lastPeer = undefined, i = akeys.length - 1; i >= 0; --i) {
@@ -544,17 +537,10 @@
       } else {
         k = pkeys.length - 1;
       }
-      if (k >= 0 && undefined === useList[k]) {
-        if (akeys[i] === pkeys[k]) {
-          peerList[i][1] = k;
-          useList[k] = i;
-          if (!objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
-            peerList[i][2] = true;
-          }
-        } else if (objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
-          peerList[i][1] = k;
-          useList[k] = i;
-        }
+      if (k >= 0 && undefined === useList[k]
+        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+        peerList[i][1] = k;
+        useList[k] = i;
       }
     }
     if (scale !== true) {
