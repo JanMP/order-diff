@@ -641,7 +641,7 @@
     };
   }
 
-  function orderObjectDiff(lhs, rhs, changes, prefilter, path, type, orderIndependent) {
+  function orderObjectDiff(lhs, rhs, changes, prefilter, path, type, orderIndependent, scale) {
     var i, j, k;
     var peerList = [];
     var useList = [];
@@ -664,7 +664,7 @@
       var kr = peerList[index][1];
       if (peerList[index][2]) {
         if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
-          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent); // eslint-disable-line no-use-before-define
+          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
         }
       }
       if (type === 'object') {
@@ -783,7 +783,7 @@
     }
   }
 
-  function orderDiff(lhs, rhs, changes, prefilter, path, orderIndependent) {
+  function orderDiff(lhs, rhs, changes, prefilter, path, orderIndependent, scale) {
     // Use string comparison for regexes
     if (realTypeOf(lhs) === 'regexp' && realTypeOf(rhs) === 'regexp') {
       lhs = lhs.toString();
@@ -805,7 +805,7 @@
     } else if (realTypeOf(lhs) === 'date' && (lhs - rhs) !== 0) {
       changes.push(new DiffEdit(path, lhs, rhs));
     } else if (ltype === 'object' && lhs !== null && rhs !== null) {
-      orderObjectDiff(lhs, rhs, changes, prefilter, path, Array.isArray(lhs) ? 'array' : 'object', orderIndependent);
+      orderObjectDiff(lhs, rhs, changes, prefilter, path, Array.isArray(lhs) ? 'array' : 'object', orderIndependent, scale);
     } else if (lhs !== rhs) {
       if (!(ltype === 'number' && isNaN(lhs) && isNaN(rhs))) {
         changes.push(new DiffEdit(path, lhs, rhs));
@@ -813,9 +813,9 @@
     }
   }
 
-  function observableDiff(lhs, rhs, observer, prefilter, orderIndependent) {
+  function observableDiff(lhs, rhs, observer, prefilter, orderIndependent, scale) {
     var changes = [];
-    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], orderIndependent);
+    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], orderIndependent, scale || 0.5);
     if (observer) {
       for (var i = 0; i < changes.length; ++i) {
         observer(changes[i]);
@@ -824,14 +824,14 @@
     return changes;
   }
 
-  function accumulateDiff(lhs, rhs, prefilter, accum, orderIndependent) {
+  function accumulateDiff(lhs, rhs, prefilter, accum, orderIndependent, scale) {
     var observer = (accum) ?
       function (difference) {
         if (difference) {
           accum.push(difference);
         }
       } : undefined;
-    var changes = observableDiff(lhs, rhs, observer, prefilter, orderIndependent);
+    var changes = observableDiff(lhs, rhs, observer, prefilter, orderIndependent, scale);
     return (accum) ? accum : (changes.length) ? changes : undefined;
   }
 
