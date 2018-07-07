@@ -1004,12 +1004,22 @@
     return true;
   }
 
-  function applyDiff(target, source, filter, orderIndependent) {
-    if (target && source) {
-      var onChange = function (change) {
+  function applyDiff(target, source, filter, changes, prefilter, orderIndependent, scale) {
+    if (!Array.isArray(changes)) {
+      scale = orderIndependent;
+      orderIndependent = prefilter;
+      prefilter = changes;
+      changes = undefined;
+    }
+    var onChange = function (change) {
+      if (!filter || filter(target, source, change)) {
         applyChange(target, source, change);
-      };
-      observableDiff(target, source, onChange, filter, orderIndependent);
+      }
+    };
+    if (!changes) {
+      observableDiff(target, source, onChange, prefilter, orderIndependent, scale);
+    } else {
+      changes.forEach(onChange);
     }
   }
 
