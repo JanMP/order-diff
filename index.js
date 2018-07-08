@@ -200,7 +200,7 @@
       if (orderIndependent !== false) {
         for (key in object) {
           if (object.hasOwnProperty(key)) {
-            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key]);
+            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent);
             accum += hashThisString(keyValueString);
           }
         }
@@ -208,7 +208,7 @@
       } else {
         for (key in object) {
           if (object.hasOwnProperty(key)) {
-            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key]);
+            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent);
             accumList.push(hashThisString(keyValueString));
           }
         }
@@ -590,7 +590,7 @@
           }
         }
       }
-      for (lastPeer = undefined, i = pkeys.length - 1; i >= 0; --i) {
+      for (lastPeer = undefined, i = akeys.length - 1; i >= 0; --i) {
         if (peerList[i][1] !== -1) {
           lastPeer = peerList[i];
           continue;
@@ -656,10 +656,10 @@
     };
   }
 
-  function pathOfNewObject(peerList, rhs) {
+  function pathOfNewObject(rhs) {
     var keys = Object.keys(rhs);
-    return function (i) {
-      return keys[peerList[i][1]];
+    return function (i, j) {
+      return keys[j];
     };
   }
 
@@ -684,8 +684,8 @@
     var indexOfLhs = (type === 'object') ? indexOfObjectLhs(lhs) : indexOfArray(lhs);
     var indexOfRhs = (type === 'object') ? indexOfObjectRhs(rhs) : indexOfArray(rhs);
     var pathOfItem = (type === 'object') ? pathOfObject(peerList) : pathOfArray();
-    var pathOfNewItem = (type === 'object') ? pathOfNewObject(peerList, rhs) : pathOfArray();
-    var indexOfNewItem = (type === 'object') ? pathOfNewObject(peerList, rhs) : function () {return -1;};
+    var pathOfNewItem = (type === 'object') ? pathOfNewObject(rhs) : pathOfArray();
+    var indexOfNewItem = (type === 'object') ? pathOfNewObject(rhs) : function () {return -1;};
     var targetOfItem = (type === 'object') ? targetOfObject(peerList) : targetOfArray();
     var indexOfRhsKey = (type === 'object') ? indexOfObjectKey(rhs) : undefined;
 
@@ -722,12 +722,12 @@
           continue;
         }
         if (undefined === useList[j]) {
-          if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(j))) {
+          if (prefilter(path, pathOfNewItem(i, j), 'N', undefined, indexOfRhs(j))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(j),
+            changes.push(new DiffNew(path.concat(pathOfNewItem(i, j)), indexOfRhs(j),
               (type === 'object') ? undefined : targetOfItem(j)));
-            peerList.splice(i, 0, [indexOfNewItem(i), j]);
+            peerList.splice(i, 0, [indexOfNewItem(i, j), j]);
             ++i;
           }
           ++j;
@@ -756,12 +756,12 @@
           continue;
         }
         if (undefined === useList[i - offset]) {
-          if (prefilter(path, pathOfNewItem(i), 'N', undefined, indexOfRhs(i - offset))) {
+          if (prefilter(path, pathOfNewItem(i, i - offset), 'N', undefined, indexOfRhs(i - offset))) {
             --offset;
           } else {
-            changes.push(new DiffNew(path.concat(pathOfItem(i)), indexOfRhs(i - offset),
+            changes.push(new DiffNew(path.concat(pathOfNewItem(i, i - offset)), indexOfRhs(i - offset),
               (type === 'object') ? targetOfItem(i) : targetOfItem(i - offset)));
-            peerList.splice(i, 0, [indexOfNewItem(i), i - offset]);
+            peerList.splice(i, 0, [indexOfNewItem(i, i - offset), i - offset]);
             ++i;
           }
           continue;
