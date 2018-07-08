@@ -1011,10 +1011,10 @@
             return false;
           }
         }
-        if (change.lhs) {
-          objectInsert(it, last, change.lhs, change.rhs);
-        } else if (typeof last === 'number') {
+        if (typeof last === 'number') {
           it.splice(last, 0, change.rhs);
+        } else if (change.lhs) {
+          objectInsert(it, last, change.lhs, change.rhs);
         } else {
           it[last] = change.rhs;
         }
