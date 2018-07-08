@@ -966,10 +966,9 @@
     switch (change.kind) {
       case 'M':
         if (source) {
-          if (typeof last !== 'number') {
-            if (realTypeOf(change.lhs) !== realTypeOf(th[change.rhs])) {
-              return false;
-            }
+          if (typeof last !== 'number' && change.rhs
+            && realTypeOf(change.lhs) !== realTypeOf(th[change.rhs])) {
+            return false;
           }
         }
         if (typeof last === 'number') {
