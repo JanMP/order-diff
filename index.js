@@ -172,22 +172,32 @@
 
   // Gets a hash of the given object in an array order-independent fashion
   // also object key order independent (easier since they can be alphabetized)
-  function getOrderIndependentHash(object, orderIndependent) {
+  function getOrderIndependentHash(object, orderIndependent, pathCache, valueCache) {
+    pathCache = pathCache || [];
+    valueCache = valueCache || [];
+
     var accum = 0;
     var accumList = [];
     var type = realTypeOf(object);
+    var k;
+
+    if (type === 'array' || type === 'object') {
+      if ((k = valueCache.indexOf(object)) !== -1) {
+        return hashThisString(pathCache.slice(k).join(','));
+      }
+    }
 
     if (type === 'array') {
       var arrayString;
       if (orderIndependent) {
-        object.forEach(function (item) {
-          accum += getOrderIndependentHash(item, orderIndependent);
-        });
+        for (k = 0; k < object.length; ++k) {
+          accum += getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(0), valueCache.concat(object));
+        }
         arrayString = '[type: array, hash: ' + accum + ']';
       } else {
-        object.forEach(function (item) {
-          accumList.push(getOrderIndependentHash(item, orderIndependent));
-        });
+        for (k = 0; k < object.length; ++k) {
+          accumList.push(getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(k), valueCache.concat(object)));
+        }
         arrayString = '[type: array, hash: ' + accumList.join(', ') + ']';
       }
       return hashThisString(arrayString);
@@ -200,7 +210,7 @@
       if (orderIndependent !== false) {
         for (key in object) {
           if (object.hasOwnProperty(key)) {
-            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent);
+            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent, pathCache.concat(key), valueCache.concat(object));
             accum += hashThisString(keyValueString);
           }
         }
@@ -208,7 +218,7 @@
       } else {
         for (key in object) {
           if (object.hasOwnProperty(key)) {
-            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent);
+            keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent, pathCache.concat(key), valueCache.concat(object));
             accumList.push(hashThisString(keyValueString));
           }
         }
@@ -328,7 +338,7 @@
           if (!rhs.hasOwnProperty(key)) {
             return false;
           }
-          if (!objectEqual(lhs.key, rhs.key, orderIndependent)) {
+          if (!objectEqual(lhs[key], rhs[key], orderIndependent)) {
             return false;
           }
         }
@@ -507,7 +517,7 @@
         }
         if (lastPeer) {
           k = lastPeer[1] - 1;
-          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent)) {
+          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent, scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -583,7 +593,7 @@
           k = 0;
         }
         if (k < pkeys.length && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -601,7 +611,7 @@
           k = pkeys.length - 1;
         }
         if (k >= 0 && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -677,9 +687,9 @@
     var useList = [];
     var ll, rl;
     if (type === 'object') {
-      compareObject(lhs, rhs, peerList, useList, orderIndependent);
+      compareObject(lhs, rhs, peerList, useList, orderIndependent, scale);
     } else {
-      compareArray(lhs, rhs, peerList, useList, orderIndependent);
+      compareArray(lhs, rhs, peerList, useList, orderIndependent, scale);
     }
     var indexOfLhs = (type === 'object') ? indexOfObjectLhs(lhs) : indexOfArray(lhs);
     var indexOfRhs = (type === 'object') ? indexOfObjectRhs(rhs) : indexOfArray(rhs);
