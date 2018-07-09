@@ -27,7 +27,7 @@ const none = diff(data, clone,
 );
 
 assert.equal(two.length, 2, 'should reflect two differences');
-assert.ok(typeof none === 'undefined', 'should reflect no differences');
+assert.equal(none.length, 0, 'should reflect empty differences');
 
 log(inspect(two, false, 9));
 log(inspect(none, false, 9));
