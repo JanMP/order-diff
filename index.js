@@ -710,7 +710,7 @@
     var length = useList.length;
     var offset = 0;
     if ((type === 'array' && orderIndependent) || (type === 'object' && orderIndependent !== false)) {
-      for (i = 0, j = 0; i < length + offset;) {
+      for (i = 0, j = 0; i < peerList.length || i < length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
@@ -721,7 +721,7 @@
           }
           continue;
         }
-        if (undefined === useList[j]) {
+        if (j < useList.length && undefined === useList[j]) {
           if (prefilter(path, pathOfNewItem(i, j), 'N', undefined, indexOfRhs(j))) {
             --offset;
           } else {
@@ -733,18 +733,18 @@
           ++j;
           continue;
         }
-        if (peerList[i] && peerList[i][1] !== -1) {
+        if (i < peerList.length && peerList[i] && peerList[i][1] !== -1) {
           doDiffIndex(i);
           ++i;
           continue;
         }
-        if (undefined !== useList[j]) {
+        if (j < useList.length && undefined !== useList[j]) {
           ++j;
           continue;
         }
       }
     } else {
-      for (i = 0; i < length + offset;) {
+      for (i = 0; i < peerList.length || i < length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
             ++offset;
@@ -755,7 +755,7 @@
           }
           continue;
         }
-        if (undefined === useList[i - offset]) {
+        if (i - offset < useList.length && undefined === useList[i - offset]) {
           if (prefilter(path, pathOfNewItem(i, i - offset), 'N', undefined, indexOfRhs(i - offset))) {
             --offset;
           } else {
@@ -766,7 +766,7 @@
           }
           continue;
         }
-        if (peerList[i][1] <= i - offset) {
+        if (i < peerList.length && peerList[i][1] <= i - offset) {
           doDiffIndex(i);
           if (peerList[i][1] < i - offset) {
             // left by move filter
@@ -782,7 +782,7 @@
           continue;
         }
         for (rl = 1; rl < peerList.length - k && peerList[k + rl][1] === i - offset + rl; ++rl); // eslint-disable-line curly
-        if (undefined !== useList[peerList[i][1] - 1]) {
+        if (i < peerList.length && undefined !== useList[peerList[i][1] - 1]) {
           j = peerList[i][1]; // temp use of j
           for (ll = 1; ll < peerList.length - i && peerList[i + ll][1] === j + ll; ++ll); // eslint-disable-line curly
           if (ll < rl) {
@@ -981,7 +981,11 @@
         if (realTypeOf(it[last]) !== realTypeOf(change.lhs)) {
           return false;
         }
-        delete it[last];
+        if (typeof last === 'number') {
+          it.splice(last, 1);
+        } else {
+          delete it[last];
+        }
         break;
       case 'E':
         if (source) {
