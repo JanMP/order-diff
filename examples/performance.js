@@ -29,7 +29,7 @@ while (++cycle < 10) {
 
     if (records) {
       stat.apply = { count: diff.length, mark: process.hrtime() };
-      records.forEach(function (ch) {
+      records.forEach(function (ch) { // eslint-disable-line no-loop-func
         diff.applyChange(prior, comparand, ch);
       });
       stat.apply.intv = process.hrtime(stat.apply.mark);
@@ -45,7 +45,7 @@ function ms(intv) {
 }
 elapsed = ms(process.hrtime(mark));
 
-stats.forEach(function (stat) {
+stats.forEach(function (stat) { // eslint-disable-line no-shadow
   stat.elapsed = ms(stat.intv);
   stat.diff.elapsed = ms(stat.diff.intv);
   avg.diff.ttl += stat.diff.elapsed;
@@ -59,6 +59,6 @@ stats.forEach(function (stat) {
 avg.diff.avg = avg.diff.ttl / ttl;
 avg.apply.avg = avg.apply.ttl / ttl;
 
-console.log('Captured '.concat(stats.length, ' samples with ', ttl, ' combined differences in ', elapsed, 'ms'));
-console.log('\tavg diff: '.concat(avg.diff.avg, 'ms or ', (1 / avg.diff.avg), ' per ms'));
-console.log('\tavg apply: '.concat(avg.apply.avg, 'ms or ', (1 / avg.apply.avg), ' per ms'));
+util.log('Captured '.concat(stats.length, ' samples with ', ttl, ' combined differences in ', elapsed, 'ms'));
+util.log('\tavg diff: '.concat(avg.diff.avg, 'ms or ', (1 / avg.diff.avg), ' per ms'));
+util.log('\tavg apply: '.concat(avg.apply.avg, 'ms or ', (1 / avg.apply.avg), ' per ms'));

@@ -1,6 +1,6 @@
 /*jshint indent:2, laxcomma:true, laxbreak:true*/
 var util = require('util')
-, deep   = require('..')
+, deep = require('..')
 ;
 
 function duckWalk() {
@@ -53,16 +53,17 @@ util.log(util.inspect(dog, false, 9) + ' walking: ');
 dog.walk();
 
 // Now there are no differences between the duck and the dog:
-if (deep.diff(duck, dog)) {
-  util.log("Ooops, that prior statement seems to be wrong! (but it won't be)");
+if (deep.diff(duck, dog).length) {
+  util.log('Ooops, that prior statement seems to be wrong! (but it won\'t be)');
 }
 
 // Now assign an "equivalent" walk function...
-dog.walk = function duckWalk() {
+dog.walk = function () {
   util.log('right step, left-step, waddle');
 };
 
-if (diff = deep.diff(duck, dog)) {
+diff = deep.diff(duck, dog);
+if (diff.length) {
   // The dog's walk function is an equivalent, but different duckWalk function.
   util.log('Hrmm, the dog walks differently: ' + util.inspect(diff, false, 9));
 }

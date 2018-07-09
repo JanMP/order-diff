@@ -1,19 +1,19 @@
 var util = require('util'),
-expect   = require('expect.js'),
-eql      = require('deep-equal'),
-deep     = require('..')
-extend   = util._extend;
-diff     = deep.diff,
-apply    = deep.applyDiff;
+expect = require('expect.js'),
+eql = require('deep-equal'),
+deep = require('..'),
+extend = util._extend,
+diff = deep.diff,
+apply = deep.applyDiff;
 
-function f0() {};
-function f1() {};
+function f0() {}
+function f1() {}
 
 var one = { it: 'be one', changed: false, with: { nested: 'data'}, f: f1};
-var two = { it: 'be two', updated: true, changed: true, with: {nested: 'data', and: 'other', plus: one} };
+var two = { it: 'be two', updated: true, f: f0, changed: true, with: {nested: 'data', and: 'other', plus: one} };
 var circ = {};
-var other = { it: 'be other', numero: 34.29, changed: [ { it: 'is the same' }, 13.3, 'get some' ], with: {nested: 'reference', plus: circ} };
-var circular = extend(circ, { it: 'be circ', updated: false, changed: [ { it: 'is not same' }, 13.3, 'get some!', {extra: 'stuff'}], with: { nested: 'reference', circular: other } });
+var other = { it: 'be other', numero: 34.29, changed: [ { it: 'is the same' }, 13.3, 'get some' ], with: { nested: 'reference', plus: circ } };
+var circular = extend({}, { it: 'be circ', updated: false, changed: [ { it: 'is not same' }, 13.3, 'get some!', {extra: 'stuff'}], with: { nested: 'reference', circular: other } });
 
 util.log(util.inspect(diff(one, two), false, 99));
 util.log(util.inspect(diff(two, one), false, 99));
@@ -43,7 +43,7 @@ apply(clone, arrayChange);
 util.log(util.inspect(clone, false, 99));
 expect(eql(clone, arrayChange)).to.be(true);
 
-var one_prop = { one: 'property' };
-var d = diff(one_prop, {});
+var oneProp = { one: 'property' };
+var d = diff(oneProp, {});
 expect(d.length).to.be(1);
 
