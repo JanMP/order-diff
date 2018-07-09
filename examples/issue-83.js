@@ -1,4 +1,4 @@
-var deepDiff = require("../");
+var deepDiff = require('../');
 
 var left = {
   date: null
@@ -8,4 +8,4 @@ var right = {
   date: null
 };
 
-console.log(deepDiff(left, right));
+console.log(deepDiff(left, right)); // eslint-disable-line no-console

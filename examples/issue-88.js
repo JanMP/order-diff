@@ -1,4 +1,4 @@
-var diff = require("../");
+var diff = require('../');
 
 var before = {
   length: 3,
@@ -11,7 +11,7 @@ var after = {
 };
 
 var differences = diff(before, after);
-console.log(differences);
+console.log(differences); // eslint-disable-line no-console
 
 function applyChanges(target, changes) {
   return changes.reduce(
@@ -23,4 +23,4 @@ function applyChanges(target, changes) {
   );
 }
 
-console.log(applyChanges(before, differences));
+console.log(applyChanges(before, differences)); // eslint-disable-line no-console
