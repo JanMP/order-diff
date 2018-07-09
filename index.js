@@ -876,7 +876,7 @@
     }
     while (++i < last) {
       if (typeof object[path[i]] === 'undefined') {
-        throw false;
+        return false;
       }
       object = object[path[i]];
     }
