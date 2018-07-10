@@ -6,6 +6,12 @@
 
 **order-diff** is a javascript/node. js module providing utility functions for determining the structural differences between objects and includes some utilities for applying differences across objects. Thanks for flitbit for create [deep-diff](http://github.com/flitbit)
 
+## Plan List
+
+* Use function for independent option, not only default or true or false.
+* Use function for scale option, not only a float for percentage.
+* Now the data not support object with circular, support circular object.
+
 ## Install
 
 ```bash
@@ -84,7 +90,7 @@ var rhs = {
 var differences = diff(lhs, rhs);
 ```
 
-*The code snippet above would result in the following structure describing the differences by default:
+* The code snippet above would result in the following structure describing the differences by default:
 
 ``` javascript
 [{
@@ -116,13 +122,13 @@ var differences = diff(lhs, rhs);
 }]
 ```
 
-*IF independent of array order.
+* IF independent of array order.
 
 ``` javascript
 var differences = diff(lhs, rhs, null, null, true);
 ```
 
-*Would result in the following structure describing the differences:
+* Would result in the following structure describing the differences:
 
 ``` javascript
 [{
@@ -148,13 +154,13 @@ var differences = diff(lhs, rhs, null, null, true);
 }]
 ```
 
-*IF dependent of object order.
+* IF dependent of object order.
 
 ``` javascript
 var differences = diff(lhs, rhs, null, null, false);
 ```
 
-*Would result in the following structure describing the differences:
+* Would result in the following structure describing the differences:
 
 ``` javascript
 [{
