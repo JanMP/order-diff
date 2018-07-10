@@ -702,17 +702,17 @@
     function doDiffIndex(index) {
       var kl = peerList[index][0];
       var kr = peerList[index][1];
+      if (peerList[index][2]) {
+        if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
+          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
+        }
+      }
       if (type === 'object') {
         if (kl !== indexOfRhsKey(kr)) {
           if (!prefilter(path, pathOfItem(index), 'R', indexOfLhs(index), indexOfRhsKey(kr))) {
             changes.push(new DiffReplace(path.concat(pathOfItem(index)), indexOfLhs(index), indexOfRhsKey(kr)));
             peerList[index][0] = indexOfRhsKey(kr);
           }
-        }
-      }
-      if (peerList[index][2]) {
-        if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
-          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
         }
       }
     }
