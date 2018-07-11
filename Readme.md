@@ -6,12 +6,6 @@
 
 **order-diff** is a javascript/node. js module providing utility functions for determining the structural differences between objects and includes some utilities for applying differences across objects. Thanks for flitbit for create [deep-diff](http://github.com/flitbit)
 
-## Plan List
-
-* Use function for independent option, not only default or true or false.
-* Use function for scale option, not only a float for percentage.
-* Now the data not support object with circular, support circular object.
-
 ## Install
 
 ```bash
@@ -271,8 +265,8 @@ The `diff` function calculates the difference between two objects.
 * `rhs` - the right-hand operand; the object being compared structurally with the origin object.
 * `prefilter` - an optional function that determines whether difference analysis should continue down the object graph.
 * `acc` - an optional accumulator/array (requirement is that it have a `push` function). Each difference is pushed to the specified accumulator.
-* `orderIndependent` - an optional indicate array and object order dependence. default array with order and object without order. IF true array will without order, false object will with order.
-* `scale` - an optional float that similarity more than that indicate two objects is similar with each other. the default is 0.5(50%). If it is true two object must equal.
+* `orderIndependent` - an optional indicate array and object order dependence. default array with order and object without order. IF true array will without order, false object will with order. IF a function can return true\false\undefined with difference path.
+* `scale` - an optional float that similarity more than that indicate two objects is similar with each other. the default is 0.5(50%). If it is true two object must equal. IF a function can return a float with difference path.
 
 Returns either an array of changes, if there are no changes, [].
 
