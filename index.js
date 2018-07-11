@@ -314,7 +314,7 @@
         var hash;
         rhs.forEach(function(item, index) {
           hash = getOrderIndependentHash(item, orderIndependent);
-          if (hashList.hash) {
+          if (hashList[hash]) {
             hashList[hash].push(index);
           } else {
             hashList[hash] = [index];
@@ -391,7 +391,7 @@
     lhs.forEach(function (item, index) {
       peerList.push([index, -1]);
       hash = getOrderIndependentHash(item, orderIndependent, pathCache.concat(index), valueCache.concat([rhs]));
-      if (lhashList.hash) {
+      if (lhashList[hash]) {
         lhashList[hash].push(index);
       } else {
         lhashList[hash] = [index];
@@ -399,7 +399,7 @@
     });
     rhs.forEach(function (item, index) {
       hash = getOrderIndependentHash(item, orderIndependent, pathCache.concat(index), valueCache.concat([rhs]));
-      if (hashList.hash) {
+      if (hashList[hash]) {
         hashList[hash].push(index);
       } else {
         hashList[hash] = [index];
