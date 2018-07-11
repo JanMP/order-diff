@@ -15,7 +15,7 @@
     describe('A target that has no properties', function () {
 
       it('shows no differences when compared to another empty object', function () {
-        expect(order.diff(empty, {})).to.be.an('undefined');
+        expect(order.diff(empty, {}).length).to.be(0);
       });
 
       describe('when compared to a different type of keyless object', function () {
@@ -94,7 +94,7 @@
       };
 
       it('shows no differences when compared to itself', function () {
-        expect(order.diff(lhs, lhs)).to.be.an('undefined');
+        expect(order.diff(lhs, lhs).length).to.be(0);
       });
 
       it('shows the property as removed when compared to an empty object', function () {
@@ -131,7 +131,7 @@
       };
 
       it('shows no differences when compared to itself', function () {
-        expect(order.diff(lhs, lhs)).to.be.an('undefined');
+        expect(order.diff(lhs, lhs).length).to.be(0);
       });
 
       it('shows the property as removed when compared to an empty object', function () {
@@ -205,7 +205,7 @@
         var diff = order.diff(lhs, {
           key: NaN
         });
-        expect(diff).to.be.an('undefined');
+        expect(diff.length).to.be(0);
       });
 
     });
@@ -254,7 +254,7 @@
       describe('if the filtered property is an array', function () {
 
         it('changes to the array do not appear as a difference', function () {
-          var prefilter = function (path, key) {
+          var prefilter = function (path, key, type) { // eslint-disable-line no-unused-vars
             return key === 'supportedBy';
           };
           var diff = order(lhs, rhs, prefilter);
@@ -271,18 +271,18 @@
       describe('if the filtered property is not an array', function () {
 
         it('changes do not appear as a difference', function () {
-          var prefilter = function (path, key) {
+          var prefilter = function (path, key, type) { // eslint-disable-line no-unused-vars
             return key === 'fixedBy';
           };
           var diff = order(lhs, rhs, prefilter);
           expect(diff).to.be.ok();
           expect(diff.length).to.be(4);
           expect(diff[0]).to.have.property('kind');
-          expect(diff[0].kind).to.be('A');
+          expect(diff[0].kind).to.be('N');
           expect(diff[1]).to.have.property('kind');
-          expect(diff[1].kind).to.be('A');
+          expect(diff[1].kind).to.be('N');
           expect(diff[2]).to.have.property('kind');
-          expect(diff[2].kind).to.be('A');
+          expect(diff[2].kind).to.be('N');
           expect(diff[3]).to.have.property('kind');
           expect(diff[3].kind).to.be('E');
         });
@@ -313,7 +313,7 @@
       };
 
       it('shows no differences when compared to itself', function () {
-        expect(order.diff(nestedOne, nestedOne)).to.be.an('undefined');
+        expect(order.diff(nestedOne, nestedOne).length).to.be(0);
       });
 
       it('shows the property as removed when compared to an empty object', function () {
@@ -329,7 +329,7 @@
       it('shows the property is changed when compared to an object that has value', function () {
         var diff = order.diff(nestedOne, nestedTwo);
         expect(diff).to.be.ok();
-        expect(diff.length).to.be(3);
+        expect(diff.length).to.be(4);
       });
 
       it('shows the property as added when compared to an empty object on left', function () {
@@ -343,9 +343,13 @@
       describe('when diff is applied to a different empty object', function () {
         var diff = order.diff(nestedOne, nestedTwo);
 
-        it('has result with nested values', function () {
-          var result = {};
+        var result = {
+          arrayOne: [{
+            objValue: 'value'
+          }]
+        };
 
+        it('has result with nested values', function () {
           order.applyChange(result, nestedTwo, diff[0]);
           expect(result.levelOne).to.be.ok();
           expect(result.levelOne).to.be.an('object');
@@ -353,9 +357,14 @@
           expect(result.levelOne.levelTwo).to.eql('another value');
         });
 
-        it('has result with array object values', function () {
-          var result = {};
+        it('has result without deleted value', function () {
+          order.applyChange(result, nestedTwo, diff[1]);
+          expect(result.arrayOne).to.be.ok();
+          expect(result.arrayOne).to.be.an('array');
+          expect(result.arrayOne.length).to.be(0);
+        });
 
+        it('has result with new added array objects', function () {
           order.applyChange(result, nestedTwo, diff[2]);
           expect(result.arrayOne).to.be.ok();
           expect(result.arrayOne).to.be.an('array');
@@ -364,10 +373,8 @@
           expect(result.arrayOne[0].objValue).to.equal('new value');
         });
 
-        it('has result with added array objects', function () {
-          var result = {};
-
-          order.applyChange(result, nestedTwo, diff[1]);
+        it('has result with other added array objects', function () {
+          order.applyChange(result, nestedTwo, diff[3]);
           expect(result.arrayOne).to.be.ok();
           expect(result.arrayOne).to.be.an('array');
           expect(result.arrayOne[1]).to.be.ok();
@@ -417,7 +424,7 @@
 
         // there should be differences
         expect(diff).to.be.ok();
-        expect(diff.length).to.be(6);
+        expect(diff.length).to.be(1);
 
         it('differences can be applied', function () {
           var applied = order.applyDiff(lhs, rhs);
@@ -439,7 +446,7 @@
         var differences = order.diff(lhs, rhs);
 
         differences.forEach(function (it) {
-          order.applyChange(lhs, true, it);
+          order.applyChange(lhs, rhs, it);
         });
 
         expect(lhs).to.eql(['a']);
@@ -508,7 +515,7 @@
       };
 
       it('should not detect a difference', function () {
-        expect(order.diff(lhs, rhs)).to.be(undefined);
+        expect(order.diff(lhs, rhs).length).to.be(0);
       });
     });
 
@@ -550,7 +557,7 @@
       it('should not detect a difference with two undefined property values', function () {
         var diff = order.diff(lhs, rhs);
 
-        expect(diff).to.be(undefined);
+        expect(diff.length).to.be(0);
 
       });
     });
@@ -582,11 +589,11 @@
 
     describe('Order independent hash testing', function () {
       function sameHash(a, b) {
-        expect(order.orderIndepHash(a)).to.equal(order.orderIndepHash(b));
+        expect(order.orderIndepHash(a, true)).to.equal(order.orderIndepHash(b, true));
       }
 
       function differentHash(a, b) {
-        expect(order.orderIndepHash(a)).to.not.equal(order.orderIndepHash(b));
+        expect(order.orderIndepHash(a, true)).to.not.equal(order.orderIndepHash(b, true));
       }
 
       describe('Order indepdendent hash function should give different values for different objects', function () {
@@ -704,16 +711,16 @@
         var lhs = [1, 2, 3];
         var rhs = [1, 3, 2];
 
-        var diff = order.orderIndependentDiff(lhs, rhs);
-        expect(diff).to.be(undefined);
+        var diff = order.diff(lhs, rhs, null, null, true);
+        expect(diff.length).to.be(0);
       });
 
       it('still works with repeated elements', function () {
         var lhs = [1, 1, 2];
         var rhs = [1, 2, 1];
 
-        var diff = order.orderIndependentDiff(lhs, rhs);
-        expect(diff).to.be(undefined);
+        var diff = order.diff(lhs, rhs, null, null, true);
+        expect(diff.length).to.be(0);
       });
 
       it('works on complex objects', function () {
@@ -739,15 +746,15 @@
           foo: 'bar'
         };
 
-        var diff = order.orderIndependentDiff(obj1, obj2);
-        expect(diff).to.be(undefined);
+        var diff = order.diff(obj1, obj2, null, null, true);
+        expect(diff.length).to.be(0);
       });
 
       it('should report some difference in non-equal arrays', function () {
         var lhs = [1, 2, 3];
         var rhs = [2, 2, 3];
 
-        var diff = order.orderIndependentDiff(lhs, rhs);
+        var diff = order.diff(lhs, rhs, null, null, true);
         expect(diff.length).to.be.ok();
       });
 
