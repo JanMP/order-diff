@@ -138,6 +138,15 @@
     };
   }
 
+  function getFunctionOption(f) {
+    if (typeof (f) === 'function') {
+      return f;
+    }
+    return function () {
+      return f;
+    };
+  }
+
   function realTypeOf(subject) {
     var type = typeof subject;
     if (type !== 'object') {
@@ -173,6 +182,7 @@
   // Gets a hash of the given object in an array order-independent fashion
   // also object key order independent (easier since they can be alphabetized)
   function getOrderIndependentHash(object, orderIndependent, pathCache, valueCache) {
+    orderIndependent = getFunctionOption(orderIndependent);
     pathCache = pathCache || [];
     valueCache = valueCache || [];
 
@@ -189,14 +199,14 @@
 
     if (type === 'array') {
       var arrayString;
-      if (orderIndependent) {
+      if (orderIndependent(pathCache)) {
         for (k = 0; k < object.length; ++k) {
-          accum += getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(0), valueCache.concat(object));
+          accum += getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(0), valueCache.concat([object]));
         }
         arrayString = '[type: array, hash: ' + accum + ']';
       } else {
         for (k = 0; k < object.length; ++k) {
-          accumList.push(getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(k), valueCache.concat(object)));
+          accumList.push(getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(k), valueCache.concat([object])));
         }
         arrayString = '[type: array, hash: ' + accumList.join(', ') + ']';
       }
@@ -207,7 +217,7 @@
       var keyValueString;
       var objectString;
       var key;
-      if (orderIndependent !== false) {
+      if (orderIndependent(pathCache) !== false) {
         for (key in object) {
           if (object.hasOwnProperty(key)) {
             keyValueString = 'key: ' + key + ', value hash: ' + getOrderIndependentHash(object[key], orderIndependent, pathCache.concat(key), valueCache.concat(object));
@@ -232,12 +242,12 @@
     return hashThisString(stringToHash);
   }
 
-  function objectSimilar(lhs, rhs, orderIndependent, scale) {
-    scale = scale || 0.5;
+  function objectSimilar(lhs, rhs, scale) {
     var ltype = realTypeOf(lhs);
     var lkeys = [];
     var rkeys = [];
     var count = 0;
+    var k;
     if (ltype !== realTypeOf(rhs)) {
       return false;
     }
@@ -245,12 +255,12 @@
       return true;
     }
     if (ltype === 'array') {
-      lhs.forEach(function (item) {
-        lkeys.push(getOrderIndependentHash(item, orderIndependent));
-      });
-      rhs.forEach(function (item) {
-        rkeys.push(getOrderIndependentHash(item, orderIndependent));
-      });
+      for (k = 0; k < lhs.length; ++k) {
+        lkeys.push(getOrderIndependentHash(lhs[k]));
+      }
+      for (k = 0; k < rhs.length; ++k) {
+        rkeys.push(getOrderIndependentHash(rhs[k]));
+      }
     } else if (ltype === 'object') {
       lkeys = Object.keys(lhs);
       rkeys = Object.keys(rhs);
@@ -267,7 +277,10 @@
     }
   }
 
-  function objectEqual(lhs, rhs, orderIndependent) {
+  function objectEqual(lhs, rhs, orderIndependent, pathCache, valueCache) {
+    orderIndependent = getFunctionOption(orderIndependent);
+    pathCache = pathCache || [];
+    valueCache = valueCache || [];
     if (lhs === rhs) {
       return true;
     }
@@ -284,6 +297,9 @@
     if (typeof lhs === 'number' && isNaN(lhs) && isNaN(rhs)) {
       return true;
     }
+    if ((valueCache.indexOf(rhs)) !== -1) {
+      return lhs === rhs;
+    }
     if (getOrderIndependentHash(lhs, orderIndependent) !== getOrderIndependentHash(rhs, orderIndependent)) {
       return false;
     }
@@ -292,7 +308,7 @@
       if (lhs.length !== rhs.length) {
         return false;
       }
-      if (orderIndependent) {
+      if (orderIndependent(pathCache)) {
         var hashList = {};
         var hash;
         rhs.forEach(function(item, index) {
@@ -310,7 +326,7 @@
           }
           var j;
           for (j = 0; j < hashList[hash].length; ++j) {
-            if (objectEqual(lhs[i], rhs[hashList[hash][j]], orderIndependent)) {
+            if (objectEqual(lhs[i], rhs[hashList[hash][j]], orderIndependent, pathCache.concat(hashList[hash][j]), valueCache.concat([rhs]))) {
               break;
             }
           }
@@ -320,7 +336,7 @@
         }
       } else {
         for (i = 0; i < lhs.length; ++i) {
-          if (!objectEqual(lhs[i], rhs[i], orderIndependent)) {
+          if (!objectEqual(lhs[i], rhs[i], orderIndependent, pathCache.concat(i), valueCache.concat([rhs]))) {
             return false;
           }
         }
@@ -328,7 +344,7 @@
       return true;
     } else {
       var key;
-      if (orderIndependent === false) {
+      if (orderIndependent(pathCache) === false) {
         if (!objectEqual(Object.keys(lhs), Object.keys(rhs), orderIndependent)) {
           return false;
         }
@@ -338,7 +354,7 @@
           if (!rhs.hasOwnProperty(key)) {
             return false;
           }
-          if (!objectEqual(lhs[key], rhs[key], orderIndependent)) {
+          if (!objectEqual(lhs[key], rhs[key], orderIndependent, pathCache.concat(key), valueCache.concat(rhs))) {
             return false;
           }
         }
@@ -365,8 +381,7 @@
     return false;
   }
 
-  function compareArray(lhs, rhs, peerList, useList, orderIndependent, scale) {
-    scale = scale || 0.5;
+  function compareArray(lhs, rhs, peerList, useList, orderIndependent, scale, pathCache, valueCache) {
     var i, j, k;
     var lhashList = {};
     var hashList = {};
@@ -374,7 +389,7 @@
     var hash;
     lhs.forEach(function (item, index) {
       peerList.push([index, -1]);
-      hash = getOrderIndependentHash(item, orderIndependent);
+      hash = getOrderIndependentHash(item, orderIndependent, pathCache.concat(index), valueCache.concat([rhs]));
       if (lhashList.hash) {
         lhashList[hash].push(index);
       } else {
@@ -382,7 +397,7 @@
       }
     });
     rhs.forEach(function (item, index) {
-      hash = getOrderIndependentHash(item, orderIndependent);
+      hash = getOrderIndependentHash(item, orderIndependent, pathCache.concat(index), valueCache.concat([rhs]));
       if (hashList.hash) {
         hashList[hash].push(index);
       } else {
@@ -394,7 +409,7 @@
         lastPeer = peerList[i];
         continue;
       }
-      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      hash = getOrderIndependentHash(lhs[i], orderIndependent, pathCache.concat(i), valueCache.concat([rhs]));
       if (!hashList[hash]) {
         continue;
       }
@@ -403,7 +418,7 @@
       } else {
         k = 0;
       }
-      if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+      if (k < rhs.length && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent, pathCache.concat(k), valueCache.concat([rhs]))) {
         peerList[i][1] = k;
         useList[k] = i;
         hashList[hash].splice(hashList[hash].indexOf(k), 1);
@@ -418,7 +433,7 @@
         continue;
       }
       if (lhashList[hash].length === 1 && hashList[hash].length === 1
-        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
+        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent, pathCache.concat(hashList[hash][0]), valueCache.concat([rhs]))) {
         k = hashList[hash][0];
         peerList[i][1] = k;
         useList[k] = i;
@@ -432,7 +447,7 @@
         lastPeer = peerList[i];
         continue;
       }
-      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      hash = getOrderIndependentHash(lhs[i], orderIndependent, pathCache.concat(i), valueCache.concat([rhs]));
       if (!hashList[hash]) {
         continue;
       }
@@ -441,7 +456,7 @@
       } else {
         k = rhs.length - 1;
       }
-      if (k >= 0 && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent)) {
+      if (k >= 0 && undefined === useList[k] && objectEqual(lhs[i], rhs[k], orderIndependent, pathCache.concat(k), valueCache.concat([rhs]))) {
         peerList[i][1] = k;
         useList[k] = i;
         hashList[hash].splice(hashList[hash].indexOf(k), 1);
@@ -456,7 +471,7 @@
         continue;
       }
       if (lhashList[hash].length === 1 && hashList[hash].length === 1
-        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent)) {
+        && objectEqual(lhs[i], rhs[hashList[hash][0]], orderIndependent, pathCache.concat(hashList[hash][0]), valueCache.concat([rhs]))) {
         k = hashList[hash][0];
         peerList[i][1] = k;
         useList[k] = i;
@@ -470,12 +485,12 @@
         lastPeer = peerList[i];
         continue;
       }
-      hash = getOrderIndependentHash(lhs[i], orderIndependent);
+      hash = getOrderIndependentHash(lhs[i], orderIndependent, pathCache.concat(i), valueCache.concat([rhs]));
       if (!hashList[hash]) {
         continue;
       }
       for (j = 0; j < hashList[hash].length; ++j) {
-        if (objectEqual(lhs[i], rhs[hashList[hash][j]], orderIndependent)) {
+        if (objectEqual(lhs[i], rhs[hashList[hash][j]], orderIndependent, pathCache.concat(hashList[hash][j]), valueCache.concat([rhs]))) {
           break;
         }
       }
@@ -493,7 +508,7 @@
         }
       }
     }
-    if (scale !== true) {
+    if (scale(pathCache) !== true) {
       for (lastPeer = undefined, i = 0; i < lhs.length; ++i) {
         if (peerList[i][1] !== -1) {
           lastPeer = peerList[i];
@@ -501,7 +516,7 @@
         }
         if (lastPeer) {
           k = lastPeer[1] + 1;
-          if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent, scale)) {
+          if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], scale(pathCache.concat(i)))) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -517,7 +532,7 @@
         }
         if (lastPeer) {
           k = lastPeer[1] - 1;
-          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], orderIndependent, scale)) {
+          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], scale(pathCache.concat(i)))) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -530,8 +545,7 @@
     useList.length = rhs.length;
   }
 
-  function compareObject(lhs, rhs, peerList, useList, orderIndependent, scale) {
-    scale = scale || 0.5;
+  function compareObject(lhs, rhs, peerList, useList, orderIndependent, scale, pathCache, valueCache) {
     var i, k;
     var lastPeer;
     var akeys = Object.keys(lhs);
@@ -540,7 +554,7 @@
       k = akeys[i];
       if (undefined !== rhs[k]) {
         useList[pkeys.indexOf(k)] = i;
-        if (objectEqual(lhs[k], rhs[k], orderIndependent)) {
+        if (objectEqual(lhs[k], rhs[k], orderIndependent, pathCache.concat(k), valueCache.concat(rhs))) {
           peerList.push([k, pkeys.indexOf(k)]);
         } else {
           peerList.push([k, pkeys.indexOf(k), true]);
@@ -560,7 +574,7 @@
         k = 0;
       }
       if (k < pkeys.length && undefined === useList[k]
-        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, pathCache.concat(pkeys[k]), valueCache.concat(rhs))) {
         peerList[i][1] = k;
         useList[k] = i;
       }
@@ -576,12 +590,12 @@
         k = pkeys.length - 1;
       }
       if (k >= 0 && undefined === useList[k]
-        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent)) {
+        && objectEqual(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, pathCache.concat(pkeys[k]), valueCache.concat(rhs))) {
         peerList[i][1] = k;
         useList[k] = i;
       }
     }
-    if (scale !== true) {
+    if (scale(pathCache) !== true) {
       for (lastPeer = undefined, i = 0; i < akeys.length; ++i) {
         if (peerList[i][1] !== -1) {
           lastPeer = peerList[i];
@@ -593,7 +607,7 @@
           k = 0;
         }
         if (k < pkeys.length && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, scale)) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], scale(pathCache.concat(akeys[i])))) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -611,7 +625,7 @@
           k = pkeys.length - 1;
         }
         if (k >= 0 && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], orderIndependent, scale)) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], scale(pathCache.concat(akeys[i])))) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -681,15 +695,15 @@
     };
   }
 
-  function orderObjectDiff(lhs, rhs, changes, prefilter, path, type, orderIndependent, scale) {
+  function orderObjectDiff(lhs, rhs, changes, prefilter, path, type, orderIndependent, scale, valueCache) {
     var i, j, k;
     var peerList = [];
     var useList = [];
     var ll, rl;
     if (type === 'object') {
-      compareObject(lhs, rhs, peerList, useList, orderIndependent, scale);
+      compareObject(lhs, rhs, peerList, useList, orderIndependent, scale, path, valueCache);
     } else {
-      compareArray(lhs, rhs, peerList, useList, orderIndependent, scale);
+      compareArray(lhs, rhs, peerList, useList, orderIndependent, scale, path, valueCache);
     }
     var indexOfLhs = (type === 'object') ? indexOfObjectLhs(lhs) : indexOfArray(lhs);
     var indexOfRhs = (type === 'object') ? indexOfObjectRhs(rhs) : indexOfArray(rhs);
@@ -704,7 +718,7 @@
       var kr = peerList[index][1];
       if (peerList[index][2]) {
         if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
-          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale); // eslint-disable-line no-use-before-define
+          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale, valueCache.concat([rhs])); // eslint-disable-line no-use-before-define
         }
       }
       if (type === 'object') {
@@ -719,7 +733,7 @@
 
     var length = useList.length;
     var offset = 0;
-    if ((type === 'array' && orderIndependent) || (type === 'object' && orderIndependent !== false)) {
+    if ((type === 'array' && orderIndependent(path)) || (type === 'object' && orderIndependent(path) !== false)) {
       for (i = 0, j = 0; i < peerList.length || i < length + offset;) {
         if (i < peerList.length && peerList[i][1] === -1) {
           if (prefilter(path, pathOfItem(i), 'D', indexOfLhs(peerList[i][0]))) {
@@ -825,7 +839,7 @@
     }
   }
 
-  function orderDiff(lhs, rhs, changes, prefilter, path, orderIndependent, scale) {
+  function orderDiff(lhs, rhs, changes, prefilter, path, orderIndependent, scale, valueCache) {
     // Use string comparison for regexes
     if (realTypeOf(lhs) === 'regexp' && realTypeOf(rhs) === 'regexp') {
       lhs = lhs.toString();
@@ -846,8 +860,14 @@
       changes.push(new DiffEdit(path, lhs, rhs));
     } else if (realTypeOf(lhs) === 'date' && (lhs - rhs) !== 0) {
       changes.push(new DiffEdit(path, lhs, rhs));
+    } else if (valueCache.indexOf(rhs) !== -1) {
+      // rhs has circular
+      if (lhs !== rhs) {
+        changes.push(new DiffEdit(path, lhs, rhs));
+      }
+      return;
     } else if (ltype === 'object' && lhs !== null && rhs !== null) {
-      orderObjectDiff(lhs, rhs, changes, prefilter, path, Array.isArray(lhs) ? 'array' : 'object', orderIndependent, scale);
+      orderObjectDiff(lhs, rhs, changes, prefilter, path, Array.isArray(lhs) ? 'array' : 'object', orderIndependent, scale, valueCache);
     } else if (lhs !== rhs) {
       if (!(ltype === 'number' && isNaN(lhs) && isNaN(rhs))) {
         changes.push(new DiffEdit(path, lhs, rhs));
@@ -857,7 +877,7 @@
 
   function observableDiff(lhs, rhs, observer, prefilter, orderIndependent, scale) {
     var changes = [];
-    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], orderIndependent, scale || 0.5);
+    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], getFunctionOption(orderIndependent), getFunctionOption(scale || 0.5), []);
     if (observer) {
       for (var i = 0; i < changes.length; ++i) {
         observer(changes[i]);
