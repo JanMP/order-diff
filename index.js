@@ -147,6 +147,80 @@
     };
   }
 
+  function getScale(scale) {
+    if (typeof scale === 'boolean') {
+      return function () { return scale; };
+    } else if (typeof scale === 'number' || scale === undefined) {
+      if (scale === undefined) {
+        scale = 0.5;
+      }
+      if (scale > 0 && scale <= 1) {
+        return function (path, lhs, rhs, count) {
+          if (lhs !== undefined && rhs !== undefined) {
+            if (Array.isArray(lhs)) {
+              return count > scale * lhs.length && count > scale * rhs.length;
+            } else {
+              return count > scale * Object.keys(lhs).length && count > scale * Object.keys(rhs).length;
+            }
+          } else {
+            return scale;
+          }
+        };
+      } else {
+        if (scale >= 0) {
+          scale = -1;
+        }
+        return function (path, lhs, rhs, count) {
+          if (lhs !== undefined && rhs !== undefined) {
+            if (Array.isArray(lhs)) {
+              return count - lhs.length >= scale && count - rhs.length >= scale;
+            } else {
+              return count - Object.keys(lhs).length >= scale && count - Object.keys(rhs).length >= scale;
+            }
+          } else {
+            return scale;
+          }
+        };
+      }
+    } else if (typeof scale === 'function') {
+      return function (path, lhs, rhs, count) {
+        if (lhs !== undefined && rhs !== undefined) {
+          var result = scale(path, lhs, rhs, count);
+          if (typeof result === 'boolean') {
+            return result;
+          } else if (typeof result === 'number' || result === undefined) {
+            if (result === undefined) {
+              result = 0.5;
+            }
+            if (result > 0 && result <= 1) {
+              if (Array.isArray(lhs)) {
+                return count > result * lhs.length && count > result * rhs.length;
+              } else {
+                return count > result * Object.keys(lhs).length && count > result * Object.keys(rhs).length;
+              }
+            } else {
+              if (result >= 0) {
+                result = -1;
+              }
+              if (Array.isArray(lhs)) {
+                return count - lhs.length >= result && count - rhs.length >= result;
+              } else {
+                return count - Object.keys(lhs).length >= result && count - Object.keys(rhs).length >= result;
+              }
+            }
+          } else {
+            return false;
+          }
+        } else {
+          return scale(path);
+        }
+      };
+    }
+    return function () {
+      return false;
+    };
+  }
+
   function realTypeOf(subject) {
     var type = typeof subject;
     if (type !== 'object') {
@@ -242,7 +316,7 @@
     return hashThisString(stringToHash);
   }
 
-  function objectSimilar(lhs, rhs, scale) {
+  function objectSimilar(lhs, rhs, path, scale) {
     var ltype = realTypeOf(lhs);
     var lkeys = [];
     var rkeys = [];
@@ -270,11 +344,7 @@
         ++count;
       }
     });
-    if (count > lkeys.length * scale && count > rkeys.length * scale) {
-      return true;
-    } else {
-      return false;
-    }
+    return scale(path, lhs, rhs, count);
   }
 
   function objectEqual(lhs, rhs, orderIndependent, pathCache, valueCache) {
@@ -517,7 +587,7 @@
         }
         if (lastPeer) {
           k = lastPeer[1] + 1;
-          if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], scale(pathCache.concat(i)))) {
+          if (k < rhs.length && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], pathCache.concat(i), scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -533,7 +603,7 @@
         }
         if (lastPeer) {
           k = lastPeer[1] - 1;
-          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], scale(pathCache.concat(i)))) {
+          if (k >= 0 && undefined === useList[k] && objectSimilar(lhs[i], rhs[k], pathCache.concat(i), scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -608,7 +678,7 @@
           k = 0;
         }
         if (k < pkeys.length && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], scale(pathCache.concat(akeys[i])))) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], pathCache.concat(akeys[i]), scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -626,7 +696,7 @@
           k = pkeys.length - 1;
         }
         if (k >= 0 && undefined === useList[k]) {
-          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], scale(pathCache.concat(akeys[i])))) {
+          if (objectSimilar(lhs[akeys[i]], rhs[pkeys[k]], pathCache.concat(akeys[i]), scale)) {
             peerList[i][1] = k;
             peerList[i][2] = true;
             useList[k] = i;
@@ -719,7 +789,11 @@
       var kr = peerList[index][1];
       if (peerList[index][2]) {
         if (!prefilter(path, pathOfItem(index), 'E', indexOfLhs(kl), indexOfRhs(kr))) {
-          orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale, valueCache.concat([rhs])); // eslint-disable-line no-use-before-define
+          if (scale(path.concat(pathOfItem(index))) === false) {
+            changes.push(new DiffEdit(path.concat(pathOfItem(index)), indexOfLhs(kl), indexOfRhs(kr)));
+          } else {
+            orderDiff(indexOfLhs(kl), indexOfRhs(kr), changes, prefilter, path.concat(pathOfItem(index)), orderIndependent, scale, valueCache.concat([rhs])); // eslint-disable-line no-use-before-define
+          }
         }
       }
       if (type === 'object') {
@@ -878,7 +952,7 @@
 
   function observableDiff(lhs, rhs, observer, prefilter, orderIndependent, scale) {
     var changes = [];
-    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], getFunctionOption(orderIndependent), getFunctionOption(scale || 0.5), []);
+    orderDiff(lhs, rhs, changes, getFilter(prefilter), [], getFunctionOption(orderIndependent), getScale(scale === undefined ? 0.5 : scale), []);
     if (observer) {
       for (var i = 0; i < changes.length; ++i) {
         observer(changes[i]);
