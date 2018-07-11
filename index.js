@@ -189,24 +189,24 @@
     var accum = 0;
     var accumList = [];
     var type = realTypeOf(object);
-    var k;
+    var i;
 
     if (type === 'array' || type === 'object') {
-      if ((k = valueCache.indexOf(object)) !== -1) {
-        return hashThisString(pathCache.slice(k).join(','));
+      if ((i = valueCache.indexOf(object)) !== -1) {
+        return hashThisString(pathCache.slice(i).join(','));
       }
     }
 
     if (type === 'array') {
       var arrayString;
       if (orderIndependent(pathCache)) {
-        for (k = 0; k < object.length; ++k) {
-          accum += getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(0), valueCache.concat([object]));
+        for (i = 0; i < object.length; ++i) {
+          accum += getOrderIndependentHash(object[i], orderIndependent, pathCache.concat(0), valueCache.concat([object]));
         }
         arrayString = '[type: array, hash: ' + accum + ']';
       } else {
-        for (k = 0; k < object.length; ++k) {
-          accumList.push(getOrderIndependentHash(object[k], orderIndependent, pathCache.concat(k), valueCache.concat([object])));
+        for (i = 0; i < object.length; ++i) {
+          accumList.push(getOrderIndependentHash(object[i], orderIndependent, pathCache.concat(i), valueCache.concat([object])));
         }
         arrayString = '[type: array, hash: ' + accumList.join(', ') + ']';
       }
@@ -247,7 +247,7 @@
     var lkeys = [];
     var rkeys = [];
     var count = 0;
-    var k;
+    var i;
     if (ltype !== realTypeOf(rhs)) {
       return false;
     }
@@ -255,11 +255,11 @@
       return true;
     }
     if (ltype === 'array') {
-      for (k = 0; k < lhs.length; ++k) {
-        lkeys.push(getOrderIndependentHash(lhs[k]));
+      for (i = 0; i < lhs.length; ++i) {
+        lkeys.push(getOrderIndependentHash(lhs[i]));
       }
-      for (k = 0; k < rhs.length; ++k) {
-        rkeys.push(getOrderIndependentHash(rhs[k]));
+      for (i = 0; i < rhs.length; ++i) {
+        rkeys.push(getOrderIndependentHash(rhs[i]));
       }
     } else if (ltype === 'object') {
       lkeys = Object.keys(lhs);
@@ -298,6 +298,7 @@
       return true;
     }
     if ((valueCache.indexOf(rhs)) !== -1) {
+      // if circular object, only them the same
       return lhs === rhs;
     }
     if (getOrderIndependentHash(lhs, orderIndependent) !== getOrderIndependentHash(rhs, orderIndependent)) {
@@ -897,7 +898,7 @@
     return (accum) ? accum : changes;
   }
 
-  function reachByPath(object, path) {
+  function reachByPath(object, path, c) {
     path = path || [];
     var i = -1,
       last = path.length - 1;
@@ -906,7 +907,11 @@
     }
     while (++i < last) {
       if (typeof object[path[i]] === 'undefined') {
-        return false;
+        if (c) {
+          object[path[i]] = ((typeof path[i + 1]) === 'number' ? [] : {});
+        } else {
+          return false;
+        }
       }
       object = object[path[i]];
     }
@@ -982,7 +987,7 @@
       return true;
     }
     var last = path[path.length - 1];
-    var it = reachByPath(target, path);
+    var it = reachByPath(target, path, true);
     var th;
     if (!it) {
       return false;
@@ -1029,7 +1034,7 @@
             }
           }
         }
-        if (realTypeOf(it[last]) !== realTypeOf(change.lhs)) {
+        if (it[last] && realTypeOf(it[last]) !== realTypeOf(change.lhs)) {
           return false;
         }
         it[last] = change.rhs;
