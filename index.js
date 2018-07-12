@@ -799,8 +799,8 @@
       }
       if (type === 'object') {
         if (kl !== indexOfRhsKey(kr)) {
-          if (!prefilter(path, pathOfItem(index), 'R', indexOfLhs(index), indexOfRhsKey(kr))) {
-            changes.push(new DiffReplace(path.concat(pathOfItem(index)), indexOfLhs(index), indexOfRhsKey(kr)));
+          if (!prefilter(path, pathOfItem(index), 'R', indexOfLhs(kl), indexOfRhsKey(kr))) {
+            changes.push(new DiffReplace(path.concat(pathOfItem(index)), indexOfLhs(kl), indexOfRhsKey(kr)));
             peerList[index][0] = indexOfRhsKey(kr);
           }
         }

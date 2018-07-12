@@ -1,7 +1,7 @@
 {
   "name": "order-diff",
   "description": "Javascript utility for calculating deep difference with order, capturing changes, and applying changes across objects; for nodejs and the browser.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "license": "MIT",
   "keywords": [
     "diff",
