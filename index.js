@@ -317,6 +317,7 @@
   }
 
   function objectSimilar(lhs, rhs, path, scale) {
+    scale = getScale(scale);
     var ltype = realTypeOf(lhs);
     var lkeys = [];
     var rkeys = [];
